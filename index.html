@@ -477,7 +477,17 @@
       const callGemini = async (prompt) => {
         if(!data.geminiKey) return "Kechirasiz, Sozlamalar bo'limida Gemini API Key kiritilmagan! Iltimos kalitni kiriting.";
         try {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${data.geminiKey}`, {
+          const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${data.geminiKey}`);
+          const listData = await listRes.json();
+          if(listData.error) return "API Kaliti xato: " + listData.error.message;
+          
+          let mName = "models/gemini-1.5-flash";
+          if(listData.models && listData.models.length > 0) {
+             const m = listData.models.find(x => x.name.includes("gemini") && x.supportedGenerationMethods && x.supportedGenerationMethods.includes("generateContent"));
+             if(m) mName = m.name;
+          }
+
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${mName}:generateContent?key=${data.geminiKey}`, {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ contents: [{ parts: [{ text: "Sen fitness dietologsan. Foydalanuvchi quyidagi ovqatni yeganini aytyapti. Qisqa va lo'nda qilib uning taxminiy kaloriya va oqsil (protein) miqdorini aniq raqamlarda ber. Faqat foydali malumot yoz.\n\nFoydalanuvchi: " + prompt }] }] })
           });
