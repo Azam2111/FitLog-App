@@ -83,7 +83,7 @@
       return {
         user: { name:'Sportchi', targets:{cal:2500, p:150, f:70, c:300} },
         streak: 0, woCount: 0, currentProgramId: null, dayIndex: 0,
-        woLogs: [], nutLogs: [], todayNut: { date: td(), meals:[], cal:0, p:0, f:0, c:0 },
+        woLogs: [], nutLogs: [], todayNut: { date: td(), meals:[], cal:0, p:0, f:0, c:0, burnedCal:0 },
         programs: [], customFoods: [], geminiKey: ''
       };
     };
@@ -117,7 +117,7 @@
     };
 
     /* ── HOME TAB ── */
-    function HomeTab({data, setTab, setActiveWorkout}) {
+    function HomeTab({data, setTab, setActiveWorkout, setData}) {
       const prog = data.programs.find(p=>p.id===data.currentProgramId);
       const todayDay = prog && prog.days.length > 0 ? prog.days[data.dayIndex % prog.days.length] : null;
       const nut = data.todayNut;
@@ -161,6 +161,33 @@
                 <MacroBar label="Oqsil" val={nut.p} max={data.user.targets.p} color="var(--blue)"/>
                 <MacroBar label="Yog'" val={nut.f} max={data.user.targets.f} color="var(--orange)"/>
                 <MacroBar label="Uglevod" val={nut.c} max={data.user.targets.c} color="var(--purple)"/>
+              </div>
+            </div>
+            
+            <div style={{marginTop:24, paddingTop:24, borderTop:'1px solid var(--border)'}}>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
+                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                  <span style={{fontSize:22}}>⌚️</span>
+                  <h4 style={{fontSize:16, fontWeight:700}}>Apple Health / Watch</h4>
+                </div>
+                <span style={{background:'rgba(255,45,85,0.1)', color:'var(--acc)', fontWeight:800, padding:'4px 10px', borderRadius:10, fontSize:14}}>{nut.burnedCal || 0} kkal yoqildi</span>
+              </div>
+              <p style={{fontSize:13, color:'var(--text2)', marginBottom:12, lineHeight:1.4}}>Bugungi mashqlar yoki yurish orqali yoqilgan kaloriyani kiriting (Shortcuts orqali avtomatlashgan).</p>
+              <div style={{display:'flex', gap:8}}>
+                <input type="number" className="input-flat" placeholder="Kkal kiritish..." style={{border:'1px solid var(--border)', flex:1}}
+                  onBlur={(e)=>{
+                    const val = parseInt(e.target.value);
+                    if(!isNaN(val)) setData(p=>({...p, todayNut:{...p.todayNut, burnedCal:val}}));
+                    e.target.value='';
+                  }}
+                  onKeyDown={(e)=>{
+                    if(e.key==='Enter') {
+                      const val = parseInt(e.target.value);
+                      if(!isNaN(val)) setData(p=>({...p, todayNut:{...p.todayNut, burnedCal:val}}));
+                      e.target.value='';
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -666,8 +693,8 @@
           if (prev.todayNut && prev.todayNut.date !== today) {
             const logs = [...(prev.nutLogs || [])];
             // Agar kecha nimadir yeyilgan bo'lsa, tarixga saqlaymiz
-            if (prev.todayNut.cal > 0) logs.push(prev.todayNut);
-            return { ...prev, nutLogs: logs, todayNut: { date: today, meals:[], cal:0, p:0, f:0, c:0 } };
+            if (prev.todayNut.cal > 0 || prev.todayNut.burnedCal > 0) logs.push(prev.todayNut);
+            return { ...prev, nutLogs: logs, todayNut: { date: today, meals:[], cal:0, p:0, f:0, c:0, burnedCal:0 } };
           }
           return prev;
         });
@@ -675,6 +702,20 @@
 
       // Xotiraga yozish (har bir o'zgarishda)
       useEffect(() => { localStorage.setItem('fitlog_v3_premium', JSON.stringify(data)); }, [data]);
+
+      // URL import tekshiruvi (Apple Health Shortcuts)
+      useEffect(() => {
+        const hash = window.location.hash;
+        if(hash.includes('#import-health')) {
+          const params = new URLSearchParams(hash.replace('#import-health',''));
+          const cal = parseInt(params.get('cal'));
+          if(!isNaN(cal)) {
+             setData(p => ({...p, todayNut: {...p.todayNut, burnedCal: cal}}));
+             alert("Apple Health'dan " + cal + " kkal muvaffaqiyatli import qilindi!");
+             window.history.replaceState(null, '', window.location.pathname);
+          }
+        }
+      }, []);
 
       const tabs = [
         {id:'home', icon:'🏠', label:'Asosiy'},
@@ -694,7 +735,7 @@
             }} onCancel={()=>setActiveWorkout(null)}/>
           ) : (
             <div style={{height:'100vh', overflowY:'auto'}}>
-              {tab==='home' && <HomeTab data={data} setTab={setTab} setActiveWorkout={setActiveWorkout}/>}
+              {tab==='home' && <HomeTab data={data} setTab={setTab} setActiveWorkout={setActiveWorkout} setData={setData}/>}
               {tab==='workout' && <WorkoutTab data={data} setData={setData} setActiveWorkout={setActiveWorkout}/>}
               {tab==='nutrition' && <NutritionTab data={data} setData={setData}/>}
               {tab==='ai' && <AITab data={data} setData={setData}/>}
