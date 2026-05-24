@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description" content="FitLog Pro 2.0 - Premium Fitness & Nutrition" />
-  <title>FitLog Pro 2.0</title>
+  <meta name="description" content="FitLog Pro 2.1 - Premium Fitness & Nutrition" />
+  <title>FitLog Pro 2.1</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'></text></svg>">
   
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -55,7 +55,7 @@
 
   <script type="text/babel" data-presets="react,env">
     const { useState, useEffect, useRef } = React;
-    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } = Recharts;
+    const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } = Recharts;
 
     /* ── BASE DATA (RAW) ── */
     const RAW_FOODS = [
@@ -83,7 +83,7 @@
       return {
         user: { name:'Sportchi', targets:{cal:2500, p:150, f:70, c:300} },
         streak: 0, woCount: 0, currentProgramId: null, dayIndex: 0,
-        woLogs: [], todayNut: { date: td(), meals:[], cal:0, p:0, f:0, c:0 },
+        woLogs: [], nutLogs: [], todayNut: { date: td(), meals:[], cal:0, p:0, f:0, c:0 },
         programs: [], customFoods: [], geminiKey: ''
       };
     };
@@ -173,6 +173,10 @@
       const [view, setView] = useState('list');
       const [editProg, setEditProg] = useState(null);
 
+      // Barcha mashqlarni yig'ish (chart uchun)
+      const allExs = Array.from(new Set((data.woLogs||[]).flatMap(log => log.exs.map(e => e.name))));
+      const [selEx, setSelEx] = useState(allExs.length > 0 ? allExs[0] : '');
+
       const openBuilder = (prog = null) => {
         setEditProg(prog ? JSON.parse(JSON.stringify(prog)) : { id:'p'+Date.now(), name:'Yangi Dastur', days:[] });
         setView('builder');
@@ -188,6 +192,20 @@
         });
         setView('list');
       };
+
+      // Progress Chart Data
+      const chartData = (data.woLogs||[]).filter(log => log.exs.some(e=>e.name===selEx)).map(log => {
+        const ex = log.exs.find(e=>e.name===selEx);
+        let maxW = 0;
+        ex.sets.forEach(s => {
+          if(s.done && s.w) {
+             let w = parseFloat(s.w);
+             if(s.type==='plita') w *= 5; // Chart uchun plitani 5kg deb chamalaymiz
+             if(w>maxW) maxW = w;
+          }
+        });
+        return { date: fmt(log.date), kg: maxW };
+      });
 
       if(view === 'builder') {
         return (
@@ -213,7 +231,7 @@
                       <input type="number" className="input-flat" value={ex.sets} onChange={e=>{const nd=[...editProg.days]; nd[di].exercises[ei].sets=parseInt(e.target.value)||0; setEditProg({...editProg, days:nd});}} placeholder="Set" style={{padding:'10px 12px', flex:1, background:'#fff'}}/>
                       <button onClick={()=>{const nd=[...editProg.days]; nd[di].exercises.splice(ei,1); setEditProg({...editProg, days:nd});}} style={{background:'none', border:'none', color:'var(--text2)', padding:'0 8px'}}>✕</button>
                     </div>
-                    <input className="input-flat" value={ex.link||''} onChange={e=>{const nd=[...editProg.days]; nd[di].exercises[ei].link=e.target.value; setEditProg({...editProg, days:nd});}} placeholder="Mashq videk havolasi (Telegram/YouTube link)" style={{padding:'10px 12px', fontSize:13, color:'var(--blue)', background:'#fff'}}/>
+                    <input className="input-flat" value={ex.link||''} onChange={e=>{const nd=[...editProg.days]; nd[di].exercises[ei].link=e.target.value; setEditProg({...editProg, days:nd});}} placeholder="Mashq video havolasi (Telegram/YouTube link)" style={{padding:'10px 12px', fontSize:13, color:'var(--blue)', background:'#fff'}}/>
                   </div>
                 ))}
                 <button onClick={()=>{const nd=[...editProg.days]; nd[di].exercises.push({name:'', sets:3, link:''}); setEditProg({...editProg, days:nd});}} style={{background:'rgba(0,122,255,0.1)', border:'none', color:'var(--blue)', width:'100%', padding:'12px', borderRadius:12, fontWeight:700, fontSize:14}}>+ Mashq qo'shish</button>
@@ -232,7 +250,28 @@
             <h1 style={{fontSize:32, fontWeight:800}}>Mashqlar</h1>
           </div>
 
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+          {allExs.length > 0 && (
+            <>
+              <h3 style={{fontSize:20, fontWeight:700, marginBottom:16}}>Mashq Progressi (Tarix)</h3>
+              <div className="card" style={{padding:'16px'}}>
+                <select className="input-flat" value={selEx} onChange={e=>setSelEx(e.target.value)} style={{background:'var(--bg)', marginBottom:16, fontWeight:600}}>
+                  {allExs.map(e=><option key={e} value={e}>{e}</option>)}
+                </select>
+                {chartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={160}>
+                    <LineChart data={chartData} margin={{top:10, right:10, left:-30, bottom:0}}>
+                      <XAxis dataKey="date" fontSize={11} stroke="var(--text2)" axisLine={false} tickLine={false}/>
+                      <YAxis fontSize={11} stroke="var(--text2)" axisLine={false} tickLine={false}/>
+                      <Tooltip contentStyle={{borderRadius:12, border:'none', boxShadow:'var(--shadow)'}}/>
+                      <Line type="monotone" dataKey="kg" stroke="var(--acc)" strokeWidth={3} dot={{r:4, fill:'var(--acc)', strokeWidth:2, stroke:'#fff'}}/>
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : <p style={{fontSize:13, color:'var(--text2)'}}>Ma'lumot topilmadi.</p>}
+              </div>
+            </>
+          )}
+
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, marginTop:32}}>
             <h3 style={{fontSize:20, fontWeight:700}}>Mening Dasturlarim</h3>
             <button onClick={()=>openBuilder()} style={{background:'rgba(0,122,255,0.1)', border:'none', color:'var(--blue)', fontWeight:700, fontSize:14, padding:'8px 16px', borderRadius:16}}>+ Yaratish</button>
           </div>
@@ -385,6 +424,17 @@
         });
       };
 
+      // Haftalik BarChart ma'lumotlari
+      const logs = data.nutLogs || [];
+      const last7 = [];
+      for(let i=6; i>=0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dStr = d.toISOString().split('T')[0];
+        const found = dStr === td() ? nut : logs.find(x=>x.date===dStr);
+        last7.push({ name: dayShort(dStr), cal: found ? found.cal : 0 });
+      }
+
       if(view === 'add') {
         return (
           <div style={{padding:'0 16px 100px'}} className="su">
@@ -417,7 +467,18 @@
             <button onClick={()=>setView('add')} style={{background:'rgba(0,122,255,0.1)', color:'var(--blue)', border:'none', padding:'8px 16px', borderRadius:16, fontWeight:700, fontSize:14}}>+ O'z Ozuqam</button>
           </div>
 
-          <div className="card" style={{display:'flex', alignItems:'center', gap:20, padding:'24px 20px'}}>
+          <div className="card" style={{padding:'20px 10px 10px 0'}}>
+            <h3 style={{fontSize:16, fontWeight:700, marginBottom:16, paddingLeft:20}}>Haftalik Kuzatuv</h3>
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={last7}>
+                <XAxis dataKey="name" fontSize={11} stroke="var(--text2)" axisLine={false} tickLine={false}/>
+                <Tooltip cursor={{fill:'rgba(0,0,0,0.03)'}} contentStyle={{borderRadius:12, border:'none', boxShadow:'var(--shadow)'}}/>
+                <Bar dataKey="cal" fill="var(--orange)" radius={[4,4,4,4]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="card" style={{display:'flex', alignItems:'center', gap:20, padding:'24px 20px', marginTop:24}}>
             <CalRing cal={nut.cal} target={data.user.targets.cal} size={110}/>
             <div style={{flex:1}}>
               <div style={{display:'flex', justifyContent:'space-between', marginBottom:6}}><span style={{fontSize:14, color:'var(--text2)', fontWeight:600}}>Oqsil</span><span style={{fontSize:15, fontWeight:700}}>{Math.round(nut.p)}g</span></div>
@@ -466,8 +527,8 @@
     }
 
     /* ── AI TAB (GEMINI) ── */
-    function AITab({data}) {
-      const [msgs, setMsgs] = useState([{role:'ai', text:"Salom! Men Gemini AI man. Menga qanday fast-food yeganingizni aytsangiz, men uning kaloriya va oqsilini taxminiy hisoblab beraman!"}]);
+    function AITab({data, setData}) {
+      const [msgs, setMsgs] = useState([{role:'ai', text:"Salom! Men Gemini AI man. Menga qanday fast-food yeganingizni aytsangiz, uning kaloriyasini aytaman va ro'yxatga qo'shish tugmasini beraman!"}]);
       const [input, setInput] = useState('');
       const [loading, setLoading] = useState(false);
       const endRef = useRef(null);
@@ -489,7 +550,7 @@
 
           const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/${mName}:generateContent?key=${data.geminiKey}`, {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ contents: [{ parts: [{ text: "Sen fitness dietologsan. Foydalanuvchi quyidagi ovqatni yeganini aytyapti. Qisqa va lo'nda qilib uning taxminiy kaloriya va oqsil (protein) miqdorini aniq raqamlarda ber. Faqat foydali malumot yoz.\n\nFoydalanuvchi: " + prompt }] }] })
+            body: JSON.stringify({ contents: [{ parts: [{ text: "Sen fitness dietologsan. Foydalanuvchi qanday ovqat yeganini aytsa uning taxminiy kaloriya, oqsil, yog, uglevod miqdorini aniqla. \n\nMUHIM: Barcha yozuvlaringdan so'ng (eng oxirida, yangi qatorda) MUTLAQO mana bu formatdagi tekstni qoldir: [ADD: {\"name\":\"Gamburger\", \"cal\": 500, \"p\":20, \"f\":15, \"c\":45}]. Dastur aynan shunga qarab ishlaydi.\n\nFoydalanuvchi: " + prompt }] }] })
           });
           const d = await res.json();
           if(d.error) return "API Xatoligi: " + d.error.message;
@@ -519,19 +580,45 @@
                 ⚠️ AI to'liq ishlashi uchun Sozlamalarga Google Gemini API kalitini kiriting. U mutlaqo bepul.
               </div>
             )}
-            {msgs.map((m, i) => (
-              <div key={i} style={{marginBottom:20, display:'flex', justifyContent: m.role==='user'?'flex-end':'flex-start'}}>
-                <div style={{maxWidth:'85%', padding:'14px 18px', borderRadius: m.role==='user'?'24px 24px 6px 24px':'24px 24px 24px 6px', background: m.role==='user'?'var(--blue)':'#fff', color: m.role==='user'?'#fff':'var(--text)', boxShadow:'var(--shadow)', fontSize:16, lineHeight:1.4}}>
-                  {m.text}
+            {msgs.map((m, i) => {
+              let text = m.text;
+              let parsedFood = null;
+              if (m.role === 'ai') {
+                const addMatch = text.match(/\[ADD:\s*(\{.*?\})\s*\]/);
+                if(addMatch) {
+                   text = text.replace(addMatch[0], '');
+                   try { parsedFood = JSON.parse(addMatch[1]); } catch(e){}
+                }
+              }
+
+              return (
+                <div key={i} style={{marginBottom:20, display:'flex', justifyContent: m.role==='user'?'flex-end':'flex-start'}}>
+                  <div style={{maxWidth:'85%', display:'flex', flexDirection:'column', gap:8}}>
+                    <div style={{padding:'14px 18px', borderRadius: m.role==='user'?'24px 24px 6px 24px':'24px 24px 24px 6px', background: m.role==='user'?'var(--blue)':'#fff', color: m.role==='user'?'#fff':'var(--text)', boxShadow:'var(--shadow)', fontSize:16, lineHeight:1.4}}>
+                      {text}
+                    </div>
+                    {parsedFood && (
+                       <button onClick={()=>{
+                         setData(p => {
+                           const item = { id:Date.now(), name:parsedFood.name, grams:100, cal:parsedFood.cal, p:parsedFood.p, f:parsedFood.f, c:parsedFood.c };
+                           const n = p.todayNut;
+                           return {...p, todayNut: {...n, meals:[...n.meals, item], cal:n.cal+item.cal, p:n.p+item.p, f:n.f+item.f, c:n.c+item.c}};
+                         });
+                         alert(parsedFood.name + " kiritildi!");
+                       }} style={{background:'rgba(52,199,89,0.1)', color:'var(--green)', border:'none', padding:'10px 14px', borderRadius:16, fontWeight:700, fontSize:14, alignSelf:'flex-start', display:'flex', alignItems:'center', gap:8, cursor:'pointer'}}>
+                         <span style={{fontSize:18, fontWeight:800}}>+</span> Kundalikka qo'shish ({parsedFood.cal} kkal)
+                       </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {loading && <div style={{color:'var(--text2)', fontSize:14, fontWeight:600, marginLeft:12}}>Gemini o'ylamoqda...</div>}
             <div ref={endRef}/>
           </div>
 
           <div className="glass" style={{padding:'16px', position:'fixed', bottom:65, width:'100%', maxWidth:430, left:'50%', transform:'translateX(-50%)', borderTop:'1px solid var(--border)', display:'flex', gap:12}}>
-            <input className="input-flat" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')send();}} placeholder="Pitsa yedim..." style={{border:'1px solid var(--border)', background:'rgba(255,255,255,0.6)', fontSize:16}}/>
+            <input className="input-flat" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')send();}} placeholder="Ikki qism pitsa yedim..." style={{border:'1px solid var(--border)', background:'rgba(255,255,255,0.6)', fontSize:16}}/>
             <button onClick={send} disabled={loading} style={{width:52, height:52, borderRadius:26, background:loading?'var(--text2)':'var(--blue)', border:'none', color:'#fff', fontWeight:800, fontSize:22, display:'flex', alignItems:'center', justifyContent:'center', transition:'all 0.2s'}}>↑</button>
           </div>
         </div>
@@ -572,6 +659,21 @@
       const [data, setData] = useState(getInitial);
       const [activeWorkout, setActiveWorkout] = useState(null);
 
+      // Har safar ilova ochilganda, Yangi Kun tekshiruvi! (Faqat mount paytida ishlaydi)
+      useEffect(() => {
+        const today = td();
+        setData(prev => {
+          if (prev.todayNut && prev.todayNut.date !== today) {
+            const logs = [...(prev.nutLogs || [])];
+            // Agar kecha nimadir yeyilgan bo'lsa, tarixga saqlaymiz
+            if (prev.todayNut.cal > 0) logs.push(prev.todayNut);
+            return { ...prev, nutLogs: logs, todayNut: { date: today, meals:[], cal:0, p:0, f:0, c:0 } };
+          }
+          return prev;
+        });
+      }, []);
+
+      // Xotiraga yozish (har bir o'zgarishda)
       useEffect(() => { localStorage.setItem('fitlog_v3_premium', JSON.stringify(data)); }, [data]);
 
       const tabs = [
@@ -595,7 +697,7 @@
               {tab==='home' && <HomeTab data={data} setTab={setTab} setActiveWorkout={setActiveWorkout}/>}
               {tab==='workout' && <WorkoutTab data={data} setData={setData} setActiveWorkout={setActiveWorkout}/>}
               {tab==='nutrition' && <NutritionTab data={data} setData={setData}/>}
-              {tab==='ai' && <AITab data={data}/>}
+              {tab==='ai' && <AITab data={data} setData={setData}/>}
               {tab==='settings' && <SettingsTab data={data} setData={setData}/>}
               
               <div className="glass" style={{position:'fixed', bottom:0, width:'100%', maxWidth:430, left:'50%', transform:'translateX(-50%)', display:'flex', padding:'12px 10px 28px', borderTop:'1px solid rgba(0,0,0,0.06)', zIndex:90}}>
