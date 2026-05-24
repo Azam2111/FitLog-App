@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="FitLog Pro - Shaxsiy gym tracker va ovqatlanish tizimi" />
+  <title>FitLog Pro — Gym Tracker 💪</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💪</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- React + ReactDOM + Recharts via CDN (no install needed) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script crossorigin src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.15.3/umd/Recharts.js"></script>
+  <!-- Babel for JSX in browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    ::-webkit-scrollbar{display:none}
+    body{background:#F4F6FB;color:#1F2937;font-family:'Barlow',sans-serif;-webkit-font-smoothing:antialiased}
+    input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+    @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes prBurst{0%,100%{transform:scale(1)}40%{transform:scale(1.35)}70%{transform:scale(0.95)}}
+    @keyframes tickAnim{0%,100%{opacity:1}50%{opacity:0.4}}
+    @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+    .su{animation:slideUp 0.28s ease}
+    .fi{animation:fadeIn 0.2s ease}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const {
+      BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+      AreaChart, Area, LineChart, Line
+    } = Recharts;
+
+    /* ── THEME ── */
+    const BG='#F4F6FB', S1='#FFFFFF', S2='#FFFFFF', S3='#EDF1F9', BD='#E0E6EF';
+    const ACC='#7C3AED', GOLD='#F59E0B', RED='#EF4444', BLUE='#3B82F6', PUR='#8B5CF6', TEAL='#14B8A6';
+    const T1='#1F2937', T2='#6B7280', T3='#D1D5DB';
+    const INV='#FFFFFF';
+    const SHADOW='0 1px 3px rgba(0,0,0,0.04), 0 6px 16px rgba(0,0,0,0.04)';
+
+    /* ── PROGRAMS ── */
+    const PROGRAMS=[
+      {id:'ppl',name:'PPL',full:"Push Pull Oyoq",color:ACC,daysPerWeek:6,goal:"Hajm va Kuch",days:[
+        {id:'push',name:'PUSH',color:ACC,muscles:"Ko'krak - Yelka - Triseps",exercises:[
+          {id:'bp',name:'Bench Press',muscle:"Ko'krak",sets:4,reps:'6-8',rir:2,tag:'main'},
+          {id:'ibp',name:'Incline DB Press',muscle:"Ko'krak yuqori",sets:3,reps:'10-12',rir:2,tag:''},
+          {id:'cfly',name:'Cable Fly',muscle:"Ko'krak",sets:3,reps:'12-15',rir:1,tag:'iso'},
+          {id:'ohp',name:'Overhead Press',muscle:'Yelka',sets:4,reps:'6-8',rir:2,tag:'main'},
+          {id:'lraise',name:'Lateral Raise',muscle:'Yelka yon',sets:4,reps:'15-20',rir:1,tag:'superset'},
+          {id:'tpd',name:'Tricep Pushdown',muscle:'Triseps',sets:3,reps:'12-15',rir:1,tag:''},
+          {id:'sc',name:'Skull Crusher',muscle:'Triseps',sets:3,reps:'10-12',rir:2,tag:''},
+        ]},
+        {id:'pull',name:'PULL',color:BLUE,muscles:"Orqa - Biseps - Yelka orqa",exercises:[
+          {id:'pu',name:'Pull-up',muscle:'Orqa',sets:4,reps:'6-10',rir:2,tag:'main'},
+          {id:'bbrow',name:'Barbell Row',muscle:'Orqa',sets:4,reps:'6-8',rir:2,tag:'main'},
+          {id:'lpd',name:'Lat Pulldown',muscle:'Orqa',sets:3,reps:'10-12',rir:2,tag:''},
+          {id:'crow',name:'Cable Row',muscle:'Orqa pastki',sets:3,reps:'12-15',rir:1,tag:''},
+          {id:'fpull',name:'Face Pull',muscle:'Yelka orqa',sets:3,reps:'15-20',rir:1,tag:'superset'},
+          {id:'bbcurl',name:'Barbell Curl',muscle:'Biseps',sets:3,reps:'10-12',rir:2,tag:''},
+          {id:'hcurl',name:'Hammer Curl',muscle:'Biseps',sets:3,reps:'12-15',rir:1,tag:''},
+        ]},
+        {id:'leg',name:'OYOQ',color:PUR,muscles:"Sonlar - Dumba - Boldir",exercises:[
+          {id:'squat',name:'Back Squat',muscle:'Sonlar',sets:4,reps:'5-6',rir:2,tag:'main'},
+          {id:'rdl',name:'Romanian Deadlift',muscle:'Dumba',sets:4,reps:'8-10',rir:2,tag:'main'},
+          {id:'lpress',name:'Leg Press',muscle:'Sonlar',sets:3,reps:'10-12',rir:2,tag:''},
+          {id:'lcurl',name:'Leg Curl',muscle:'Dumba',sets:3,reps:'12-15',rir:1,tag:''},
+          {id:'lext',name:'Leg Extension',muscle:'Sonlar',sets:3,reps:'15',rir:1,tag:''},
+          {id:'ht',name:'Hip Thrust',muscle:'Dumba',sets:3,reps:'12-15',rir:1,tag:''},
+          {id:'cr',name:'Calf Raise',muscle:'Boldir',sets:4,reps:'15-20',rir:1,tag:''},
+        ]},
+      ]},
+      {id:'ul',name:'U/L',full:"Yuqori va Pastki",color:GOLD,daysPerWeek:4,goal:"Kuch va Estetika",days:[
+        {id:'upper',name:'YUQORI',color:GOLD,muscles:"Ko'krak - Orqa - Yelka - Qo'l",exercises:[
+          {id:'bp2',name:'Bench Press',muscle:"Ko'krak",sets:4,reps:'6-8',rir:2,tag:'main'},
+          {id:'bbrow2',name:'Barbell Row',muscle:'Orqa',sets:4,reps:'6-8',rir:2,tag:'main'},
+          {id:'ohp2',name:'Overhead Press',muscle:'Yelka',sets:3,reps:'8-10',rir:2,tag:'main'},
+          {id:'lpd2',name:'Lat Pulldown',muscle:'Orqa',sets:3,reps:'10-12',rir:2,tag:''},
+          {id:'lraise2',name:'Lateral Raise',muscle:'Yelka yon',sets:3,reps:'15-20',rir:1,tag:'iso'},
+          {id:'bbcurl2',name:'Barbell Curl',muscle:'Biseps',sets:3,reps:'10-12',rir:1,tag:''},
+          {id:'tpd2',name:'Tricep Pushdown',muscle:'Triseps',sets:3,reps:'12-15',rir:1,tag:''},
+        ]},
+        {id:'lower',name:'PASTKI',color:TEAL,muscles:"Sonlar - Dumba - Boldir - Abs",exercises:[
+          {id:'squat2',name:'Back Squat',muscle:'Sonlar',sets:4,reps:'5-6',rir:2,tag:'main'},
+          {id:'rdl2',name:'Romanian Deadlift',muscle:'Dumba',sets:4,reps:'8-10',rir:2,tag:'main'},
+          {id:'lpress2',name:'Leg Press',muscle:'Sonlar',sets:3,reps:'10-12',rir:2,tag:''},
+          {id:'lcurl2',name:'Leg Curl',muscle:'Dumba',sets:3,reps:'12-15',rir:1,tag:''},
+          {id:'cr2',name:'Calf Raise',muscle:'Boldir',sets:4,reps:'15-20',rir:1,tag:''},
+          {id:'plank',name:'Plank',muscle:'Abs',sets:3,reps:'60 sek',rir:0,tag:''},
+        ]},
+      ]},
+      {id:'fb',name:'FB',full:"To'liq Tana",color:RED,daysPerWeek:3,goal:"Umumiy Sog'lom",days:[
+        {id:'fullbody',name:"TO'LIQ",color:RED,muscles:'Barcha mushaklar',exercises:[
+          {id:'squat3',name:'Back Squat',muscle:'Sonlar',sets:3,reps:'8',rir:2,tag:'main'},
+          {id:'bp3',name:'Bench Press',muscle:"Ko'krak",sets:3,reps:'8',rir:2,tag:'main'},
+          {id:'bbrow3',name:'Barbell Row',muscle:'Orqa',sets:3,reps:'8',rir:2,tag:'main'},
+          {id:'ohp3',name:'Overhead Press',muscle:'Yelka',sets:3,reps:'8',rir:2,tag:'main'},
+          {id:'rdl3',name:'Romanian Deadlift',muscle:'Dumba',sets:3,reps:'10',rir:2,tag:''},
+          {id:'pu3',name:'Pull-up',muscle:'Orqa',sets:3,reps:'max',rir:1,tag:''},
+          {id:'lraise3',name:'Lateral Raise',muscle:'Yelka',sets:3,reps:'15',rir:1,tag:'iso'},
+        ]},
+      ]},
+    ];
+
+    /* ── FOODS ── */
+    const FOODS=[
+      {id:'f1',name:"Tovuq ko'kragi",cat:'Oqsil',e:'🍗',cal:165,p:31,f:3.6,c:0},
+      {id:'f2',name:'Tuxum qaynatilgan',cat:'Oqsil',e:'🥚',cal:155,p:13,f:11,c:1.1},
+      {id:'f3',name:'Tuna konserva',cat:'Oqsil',e:'🐟',cal:116,p:26,f:1,c:0},
+      {id:'f4',name:'Tvorog 1%',cat:'Oqsil',e:'🥛',cal:79,p:17,f:1,c:1.8},
+      {id:'f5',name:"Qiyma mol go'shti",cat:'Oqsil',e:'🥩',cal:176,p:26,f:7,c:0},
+      {id:'f6',name:'Guruch pishirilgan',cat:'Uglevod',e:'🍚',cal:130,p:2.7,f:0.3,c:28},
+      {id:'f7',name:"Suli jo'xori",cat:'Uglevod',e:'🌾',cal:389,p:17,f:7,c:66},
+      {id:'f8',name:'Kepakli non',cat:'Uglevod',e:'🍞',cal:247,p:13,f:4,c:41},
+      {id:'f9',name:'Kartoshka',cat:'Uglevod',e:'🥔',cal:87,p:1.9,f:0.1,c:20},
+      {id:'f10',name:'Banan',cat:'Meva',e:'🍌',cal:89,p:1.1,f:0.3,c:23},
+      {id:'f11',name:"O'zbek plovi",cat:"O'zbek",e:'🍲',cal:225,p:8,f:9,c:30},
+      {id:'f12',name:"Lag'mon",cat:"O'zbek",e:'🍜',cal:150,p:9,f:5,c:20},
+      {id:'f13',name:'Manti',cat:"O'zbek",e:'🥟',cal:180,p:10,f:8,c:18},
+      {id:'f14',name:"Sho'rva",cat:"O'zbek",e:'🍲',cal:85,p:7,f:4,c:6},
+      {id:'f15',name:'Ful Misr',cat:'Misriy',e:'🫘',cal:110,p:7,f:0.5,c:20},
+      {id:'f16',name:'Kushuri',cat:'Misriy',e:'🍛',cal:180,p:7,f:3,c:33},
+      {id:'f17',name:'Xummus',cat:'Misriy',e:'🥣',cal:166,p:8,f:10,c:14},
+      {id:'f18',name:'Protein shake',cat:'Sport',e:'🥤',cal:120,p:25,f:1.5,c:3},
+      {id:'f19',name:'Zaytun moyi',cat:"Yog'",e:'🫙',cal:884,p:0,f:100,c:0},
+      {id:'f20',name:'Bodom',cat:"Yog'",e:'🌰',cal:579,p:21,f:50,c:22},
+    ];
+
+    const QUOTES=[
+      "Har bir rep — o'zingga investitsiya.",
+      "Disiplin motivatsiyadan kuchli.",
+      "Natija bir kunda emas, kunlar orqali keladi.",
+      "O'zingni solishtir — kechagi o'zingga.",
+      "Trening og'ir, lekin zaif bo'lish undan og'irroq.",
+      "Ishon o'z jarayoningga.",
+      "Natijaga emas, jarayonga muhabbat qo'y.",
+      "Har kecha g'urur bilan yot.",
+    ];
+
+    /* ── UTILS ── */
+    const td=()=>new Date().toISOString().split('T')[0];
+    const fmt=(d)=>new Date(d).toLocaleDateString('uz-UZ',{day:'numeric',month:'short'});
+    const dayShort=(d)=>['Yak','Du','Se','Cho','Pay','Ju','Sha'][new Date(d).getDay()];
+    const e1rm=(w,r)=>Math.round(w*(1+r/30));
+    const volCalc=(sets)=>sets.reduce((a,s)=>a+(parseFloat(s.w||0)*parseInt(s.r||0)),0);
+    const pct=(a,b)=>b>0?Math.min(100,Math.round(a/b*100)):0;
+
+    /* ── LOCAL STORAGE ── */
+    const getInitial=()=>{
+      try{const s=localStorage.getItem('fitlogpro_v2');if(s)return JSON.parse(s);}catch(e){}
+      const days=Array.from({length:14},(_,i)=>{
+        const d=new Date();d.setDate(d.getDate()-13+i);return d.toISOString().split('T')[0];
+      });
+      return {
+        user:{name:'Azam',age:25,wt:75.8,ht:175,goal:'recomp',level:'intermediate',targets:{cal:2000,p:160,f:65,c:220,water:10}},
+        streak:12,lastWo:td(),woCount:37,currentProgram:'ppl',dayIndex:0,
+        prs:[
+          {eid:'bp',name:'Bench Press',w:82.5,r:8,date:days[13],e1rm:105},
+          {eid:'squat',name:'Back Squat',w:102.5,r:6,date:days[9],e1rm:120},
+          {eid:'bbrow',name:'Barbell Row',w:87.5,r:8,date:days[11],e1rm:112},
+          {eid:'ohp',name:'Overhead Press',w:60,r:8,date:days[7],e1rm:76},
+        ],
+        woLogs:[
+          {date:days[13],prog:'ppl',day:'push',dur:75,vol:12400,exs:[
+            {id:'bp',name:'Bench Press',sets:[{w:80,r:8,done:true},{w:82.5,r:8,done:true},{w:82.5,r:7,done:true}]},
+            {id:'ohp',name:'Overhead Press',sets:[{w:57.5,r:8,done:true},{w:57.5,r:8,done:true},{w:57.5,r:7,done:true}]},
+          ]},
+          {date:days[11],prog:'ppl',day:'pull',dur:70,vol:10800,exs:[
+            {id:'pu',name:'Pull-up',sets:[{w:0,r:10,done:true},{w:0,r:9,done:true},{w:0,r:8,done:true}]},
+            {id:'bbrow',name:'Barbell Row',sets:[{w:85,r:8,done:true},{w:87.5,r:8,done:true},{w:87.5,r:7,done:true}]},
+          ]},
+          {date:days[9],prog:'ppl',day:'leg',dur:80,vol:18500,exs:[
+            {id:'squat',name:'Back Squat',sets:[{w:100,r:6,done:true},{w:102.5,r:6,done:true},{w:102.5,r:5,done:true}]},
+          ]},
+        ],
+        nutLogs:days.map((date,i)=>({date,cal:1700+Math.round(Math.sin(i)*200)+200,p:145+Math.round(Math.cos(i)*20),f:58+Math.round(Math.sin(i)*10),c:190+Math.round(Math.cos(i)*40),water:7+Math.round(Math.sin(i)*2),meals:[]})),
+        bodyLogs:[
+          {date:days[0],wt:77.2,waist:84,chest:100,arms:38,bf:16.1},
+          {date:days[3],wt:76.8,waist:83.5,chest:100.5,arms:38.2,bf:15.9},
+          {date:days[6],wt:76.3,waist:83,chest:101,arms:38.5,bf:15.6},
+          {date:days[9],wt:76.0,waist:82.5,chest:101,arms:38.8,bf:15.4},
+          {date:days[11],wt:75.9,waist:82,chest:101.5,arms:39,bf:15.3},
+          {date:days[13],wt:75.8,waist:81.5,chest:102,arms:39,bf:15.2},
+        ],
+        recLogs:days.slice(-7).map((date,i)=>({date,sleep:+(6+Math.sin(i)*2).toFixed(1),energy:7+Math.round(Math.sin(i)),soreness:2+Math.round(Math.abs(Math.sin(i))),stress:2+Math.round(Math.abs(Math.cos(i)))})),
+        todayNut:{date:td(),meals:[],cal:0,p:0,f:0,c:0,water:0},
+      };
+    };
+
+    /* ── SMART AI ── */
+    function aiReply(q,data){
+      const ql=q.toLowerCase();
+      const lb=data.bodyLogs[data.bodyLogs.length-1];
+      const t=data.user.targets;
+      const n=data.user.name;
+      if(ql.includes('trening')||ql.includes('maslahat')||ql.includes('mashq')){
+        return "💪 "+n+", bugungi trening uchun:\n\n1. 🔥 5-10 daqiqa isitish\n2. 🏋️ Compound mashqlardan boshlang\n3. ⏱️ 90-120 sek dam oling\n4. 📊 RIR 2 saqlang\n5. 💧 500ml suv iching\n\nStreakingiz: "+data.streak+" kun! 🎯";
+      }
+      if(ql.includes('ovqat')||ql.includes('rekomp')||ql.includes('kaloriya')){
+        return "🥗 Body Rekomp ovqatlanish:\n\n• Kaloriya: "+t.cal+" kkal/kun\n• Oqsil: "+t.p+"g ⭐ (eng muhim)\n• Yog': "+t.f+"g\n• Uglevod: "+t.c+"g\n\n✅ Har ovqatda 30-40g oqsil yeng!\nTrening keyin 30 min ichida oqsil+uglevod.";
+      }
+      if(ql.includes('lateral')||ql.includes('texnika')){
+        return "🎯 Lateral Raise texnikasi:\n\n✅ To'g'ri:\n• Tirsak 15-20° bukilgan\n• Yelkadan ko'taring\n• Parallel balandlikkacha\n• Sekin tushiring (3 sek)\n\n❌ Xatolar:\n• Juda og'ir yuk\n• Tana bilan tebranish\n\n15-20 takror — ajoyib yelka! 🔥";
+      }
+      if(ql.includes('pr')||ql.includes('rekord')||ql.includes('kuch')){
+        return "🏆 Rekordlaringiz:\n"+data.prs.map(p=>"• "+p.name+": "+p.w+"kg×"+p.r+" (1RM~"+p.e1rm+"kg)").join('\n')+"\n\n📈 Kuch o'stirish:\n1. Har hafta 1-2.5kg qo'shing\n2. 7-9 soat uyqu\n3. Kreatin 5g/kun\n4. RPE 8-9 da ishlang 💪";
+      }
+      if(ql.includes('tiklanish')||ql.includes('uyqu')||ql.includes('recovery')){
+        return "😴 Tiklanish:\n\n1. 7-9 soat uyqu — ENG MUHIM\n2. "+t.water+" stakan suv\n3. Stretching trening orasida\n4. "+t.p+"g oqsil/kun\n5. Sovuq/issiq dush\n\n48-72 soat mushak guruhi uchun dam! 🏆";
+      }
+      if(ql.includes('oqsil')||ql.includes('protein')){
+        const r=(t.p/(lb?lb.wt:75)).toFixed(1);
+        return "🥩 Oqsil:\n\nMaqsad: "+t.p+"g/kun\nVazniga: "+r+"g/kg\n"+(parseFloat(r)>=1.6?"✅ Zo'r! Optimal diapazon.":"⚠️ Oshiring — 1.6-2.2g/kg kerak")+"\n\n🍗 Eng yaxshi manbalar:\n• Tovuq: 31g/100g\n• Tuna: 26g/100g\n• Tvorog: 17g/100g\n• Protein shake: 25g 💪";
+      }
+      if(ql.includes('motivatsiya')||ql.includes('ishla')||ql.includes('ruhiy')){
+        return "🔥 Motivatsiya!\n\n\"Disiplin motivatsiyadan kuchli\"\n— Jocko Willink\n\n📊 Sizning yutuqlar:\n• "+data.streak+" kunlik streak 🔥\n• "+data.woCount+" ta trening\n• "+data.prs.length+" ta PR\n\nSiz 99% odamlardan ko'proq ishlayapsiz! 🚀 Bugun ham bir qadam! 💪";
+      }
+      if(ql.includes('vazn')||ql.includes('ozish')||ql.includes('semirish')){
+        const ch=lb&&data.bodyLogs[0]?(lb.wt-data.bodyLogs[0].wt).toFixed(1):'0';
+        return "⚖️ Vazn tahlili:\n\nHozir: "+(lb?lb.wt:'?')+"kg\nO'zgarish (14 kun): "+ch+"kg\nMaqsad: Body Rekompositsiya\n\n💡 Rekomp:\n• 0.2-0.5kg/hafta tushish ideal\n• Kuch oshsa — mushak o'smoqda ✅\n• Sabr — jarayon ishlayapti! 🎯";
+      }
+      return "Assalomu alaykum, "+n+"! 👋\n\nYordam bera olaman:\n💪 Trening va mashqlar\n🥗 Ovqatlanish\n🏆 Kuch o'stirish\n😴 Tiklanish\n🥩 Oqsil va makrolar\n⚖️ Vazn\n🔥 Motivatsiya\n\nSavol bering! 🤖";
+    }
+
+    /* ── SHARED COMPONENTS ── */
+    const Card=({children,style,onClick})=>(
+      <div onClick={onClick} style={{background:S2,border:'1px solid '+BD,borderRadius:16,padding:16,boxShadow:SHADOW,...(style||{}),cursor:onClick?'pointer':'default'}}>
+        {children}
+      </div>
+    );
+    const Pill=({children,color,style})=>{
+      const c=color||ACC;
+      return <span style={{background:c+'22',color:c,fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:20,letterSpacing:1,...(style||{}),fontFamily:"'Barlow Condensed',sans-serif"}}>{children}</span>;
+    };
+    const Btn=({children,onClick,color,outline,style,disabled})=>{
+      const c=color||ACC;
+      return <button onClick={onClick} disabled={disabled} style={{background:outline?'transparent':c,color:outline?c:INV,border:'1.5px solid '+c,borderRadius:10,padding:'10px 20px',fontWeight:700,fontSize:14,cursor:disabled?'default':'pointer',fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5,opacity:disabled?0.4:1,transition:'all 0.2s',...(style||{})}}>{children}</button>;
+    };
+    const MacroBar=({label,val,max,color})=>(
+      <div style={{marginBottom:10}}>
+        <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+          <span style={{fontSize:12,color:T2}}>{label}</span>
+          <span style={{fontSize:12,color:T1,fontWeight:600,fontFamily:"'Barlow Condensed',sans-serif"}}>{Math.round(val)}g / {max}g</span>
+        </div>
+        <div style={{height:6,background:S3,borderRadius:4,overflow:'hidden'}}>
+          <div style={{width:pct(val,max)+'%',height:'100%',background:color,borderRadius:4,transition:'width 0.5s ease'}}/>
+        </div>
+      </div>
+    );
+    const CalRing=({cal,target,size})=>{
+      const sz=size||120,r=44,circ=2*Math.PI*r;
+      const dash=Math.min(1,cal/(target||1))*circ;
+      return(
+        <svg width={sz} height={sz} viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r={r} fill="none" stroke={S3} strokeWidth="8"/>
+          <circle cx="60" cy="60" r={r} fill="none" stroke={ACC} strokeWidth="8"
+            strokeDasharray={dash+' '+(circ-dash)} strokeLinecap="round"
+            transform="rotate(-90 60 60)" style={{transition:'stroke-dasharray 0.6s ease'}}/>
+          <text x="60" y="56" textAnchor="middle" fill={T1} fontSize="18" fontWeight="800" style={{fontFamily:"'Barlow Condensed',sans-serif"}}>{Math.round(cal)}</text>
+          <text x="60" y="70" textAnchor="middle" fill={T2} fontSize="10" style={{fontFamily:"'Barlow Condensed',sans-serif"}}>KKAL</text>
+          <text x="60" y="82" textAnchor="middle" fill={T3} fontSize="9">/{target}</text>
+        </svg>
+      );
+    };
+    const StatLine=({label,value,color})=>(
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid '+BD}}>
+        <span style={{color:T2,fontSize:13}}>{label}</span>
+        <span style={{color:color||T1,fontWeight:700,fontSize:15,fontFamily:"'Barlow Condensed',sans-serif"}}>{value}</span>
+      </div>
+    );
+    const SubTabs=({tabs,active,onChange})=>(
+      <div style={{display:'flex',gap:6,marginBottom:20,background:S3,padding:4,borderRadius:12}}>
+        {tabs.map(([id,label])=>(
+          <button key={id} onClick={()=>onChange(id)} style={{flex:1,padding:'8px 0',borderRadius:10,border:'none',background:active===id?S1:'transparent',color:active===id?T1:T2,fontFamily:"'Barlow Condensed',sans-serif",fontSize:13,fontWeight:700,cursor:'pointer',letterSpacing:1,boxShadow:active===id?'0 1px 4px rgba(0,0,0,0.06)':'none',transition:'all 0.2s'}}>{label}</button>
+        ))}
+      </div>
+    );
+
+    /* ── HOME TAB ── */
+    function HomeTab({data,setTab,setActiveWorkout}){
+      const prog=PROGRAMS.find(p=>p.id===data.currentProgram);
+      const todayDay=prog?prog.days[data.dayIndex%prog.days.length]:null;
+      const lb=data.bodyLogs[data.bodyLogs.length-1],fb=data.bodyLogs[0];
+      const nut=data.todayNut;
+      const quote=QUOTES[new Date().getDay()%QUOTES.length];
+      const weekGrid=Array.from({length:7},(_,i)=>{
+        const d=new Date();d.setDate(d.getDate()-6+i);
+        const ds=d.toISOString().split('T')[0];
+        return {d:ds,short:dayShort(ds),active:data.woLogs.some(w=>w.date===ds)};
+      });
+      return(
+        <div style={{padding:'0 16px 16px'}} className="su">
+          {/* Header */}
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'52px 0 20px'}}>
+            <div>
+              <p style={{color:T2,fontSize:12,letterSpacing:2,fontFamily:"'Barlow Condensed',sans-serif"}}>SALOM,</p>
+              <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:34,fontWeight:900,color:T1}}>{data.user.name.toUpperCase()} 👋</h1>
+            </div>
+            <div style={{textAlign:'center',background:'linear-gradient(135deg,'+ACC+'15,'+PUR+'15)',border:'1px solid '+ACC+'33',borderRadius:14,padding:'10px 16px'}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:900,color:ACC,lineHeight:1}}>{data.streak}</div>
+              <div style={{fontSize:10,color:T2,letterSpacing:1}}>🔥 STREAK</div>
+            </div>
+          </div>
+          {/* Quote */}
+          <div style={{background:ACC+'0D',border:'1px solid '+ACC+'33',borderRadius:12,padding:'10px 14px',marginBottom:16}}>
+            <p style={{color:ACC,fontSize:13,fontStyle:'italic'}}>"{quote}"</p>
+          </div>
+          {/* Today Workout */}
+          {todayDay&&(
+            <Card style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+                <div>
+                  <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:4,fontFamily:"'Barlow Condensed',sans-serif"}}>BUGUNGI TRENING</p>
+                  <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:900,color:todayDay.color}}>{todayDay.name}</h2>
+                  <p style={{color:T2,fontSize:12,marginTop:2}}>{todayDay.muscles}</p>
+                </div>
+                <Pill color={todayDay.color}>{prog&&prog.name}</Pill>
+              </div>
+              <div style={{display:'flex',gap:8,marginBottom:14}}>
+                {[['MASHQ',todayDay.exercises.length],['SET',todayDay.exercises.reduce((a,e)=>a+e.sets,0)],['MIN','~60']].map(item=>(
+                  <div key={item[0]} style={{flex:1,background:todayDay.color+'11',border:'1px solid '+todayDay.color+'33',borderRadius:8,padding:'6px 4px',textAlign:'center'}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:800,color:todayDay.color}}>{item[1]}</div>
+                    <div style={{fontSize:9,color:T2}}>{item[0]}</div>
+                  </div>
+                ))}
+              </div>
+              <Btn onClick={()=>{setActiveWorkout({prog,day:todayDay,startTime:Date.now()});setTab('workout');}} style={{width:'100%',fontSize:16,padding:'12px'}} color={todayDay.color}>
+                ▶ TRENINGNI BOSHLASH
+              </Btn>
+            </Card>
+          )}
+          {/* Stats */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+            <Card style={{padding:14}}>
+              <p style={{color:T2,fontSize:10,letterSpacing:2,marginBottom:6,fontFamily:"'Barlow Condensed',sans-serif"}}>VAZN</p>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:900,color:T1,lineHeight:1}}>{lb&&lb.wt}<span style={{fontSize:14,color:T2}}> kg</span></div>
+              {lb&&fb&&<div style={{color:lb.wt<fb.wt?TEAL:RED,fontSize:11,marginTop:4,fontWeight:600}}>{(lb.wt-fb.wt).toFixed(1)}kg (14k)</div>}
+            </Card>
+            <Card style={{padding:14}}>
+              <p style={{color:T2,fontSize:10,letterSpacing:2,marginBottom:6,fontFamily:"'Barlow Condensed',sans-serif"}}>TRENING</p>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:900,color:T1,lineHeight:1}}>{data.woCount}<span style={{fontSize:14,color:T2}}> ta</span></div>
+              <div style={{color:ACC,fontSize:11,marginTop:4,fontWeight:600}}>Jami trening</div>
+            </Card>
+          </div>
+          {/* Week grid */}
+          <Card style={{marginBottom:12}}>
+            <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:14,fontFamily:"'Barlow Condensed',sans-serif"}}>HAFTALIK FAOLLIK</p>
+            <div style={{display:'flex',gap:6,justifyContent:'space-between'}}>
+              {weekGrid.map(d=>(
+                <div key={d.d} style={{flex:1,textAlign:'center'}}>
+                  <div style={{width:'100%',paddingBottom:'100%',borderRadius:8,background:d.active?ACC:S3,border:'1px solid '+(d.active?ACC:BD),marginBottom:4,position:'relative'}}>
+                    {d.active&&<span style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',fontSize:10,color:INV,fontWeight:900}}>✓</span>}
+                  </div>
+                  <span style={{fontSize:9,color:d.active?T1:T3,fontWeight:d.active?600:400}}>{d.short}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+          {/* Nutrition ring */}
+          <Card style={{marginBottom:12}}>
+            <div style={{display:'flex',alignItems:'center',gap:16}}>
+              <CalRing cal={nut.cal} target={data.user.targets.cal} size={100}/>
+              <div style={{flex:1}}>
+                <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:10,fontFamily:"'Barlow Condensed',sans-serif"}}>BUGUNGI OVQAT</p>
+                <MacroBar label="Oqsil" val={nut.p} max={data.user.targets.p} color={BLUE}/>
+                <MacroBar label="Yog'" val={nut.f} max={data.user.targets.f} color={GOLD}/>
+                <MacroBar label="Uglevod" val={nut.c} max={data.user.targets.c} color={PUR}/>
+              </div>
+            </div>
+          </Card>
+          {/* PRs */}
+          <Card style={{marginBottom:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+              <p style={{color:T2,fontSize:11,letterSpacing:2,fontFamily:"'Barlow Condensed',sans-serif"}}>SHAXSIY REKORDLAR</p>
+              <Pill color={GOLD}>PR</Pill>
+            </div>
+            {data.prs.slice(0,3).map(pr=>(
+              <div key={pr.eid} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid '+BD}}>
+                <div>
+                  <p style={{fontSize:14,fontWeight:600,color:T1}}>{pr.name}</p>
+                  <p style={{color:T2,fontSize:11}}>{fmt(pr.date)}</p>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <p style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:800,color:GOLD}}>{pr.w}kg x {pr.r}</p>
+                  <p style={{color:T3,fontSize:10}}>1RM ~ {pr.e1rm}kg</p>
+                </div>
+              </div>
+            ))}
+          </Card>
+          {/* Water */}
+          <Card>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}>
+              <p style={{color:T2,fontSize:11,letterSpacing:2,fontFamily:"'Barlow Condensed',sans-serif"}}>SUV 💧</p>
+              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:800,color:BLUE}}>{nut.water} / {data.user.targets.water}</span>
+            </div>
+            <div style={{display:'flex',gap:4}}>
+              {Array.from({length:data.user.targets.water},(_,i)=>(
+                <div key={i} style={{flex:1,height:8,borderRadius:4,background:i<nut.water?BLUE:S3}}/>
+              ))}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    /* ── ACTIVE WORKOUT ── */
+    function ActiveWorkoutScreen({workout,data,onFinish,onCancel}){
+      const {day,startTime}=workout;
+      const initSets=()=>day.exercises.map(ex=>{
+        const prev=data.woLogs.find(l=>l.day===day.id);
+        const pe=prev&&prev.exs?prev.exs.find(e=>e.id===ex.id):null;
+        return {id:ex.id,name:ex.name,muscle:ex.muscle,tag:ex.tag,reps:ex.reps,rir:ex.rir,
+          sets:Array.from({length:ex.sets},(_,i)=>({w:pe&&pe.sets[i]?pe.sets[i].w:'',r:pe&&pe.sets[i]?pe.sets[i].r:ex.reps,done:false}))};
+      });
+      const [exSets,setExSets]=useState(initSets);
+      const [timer,setTimer]=useState(null);
+      const [timerSecs,setTimerSecs]=useState(90);
+      const [elapsed,setElapsed]=useState(0);
+      const [prFlash,setPrFlash]=useState(null);
+      const timerRef=useRef(null);
+      useEffect(()=>{
+        const t=setInterval(()=>setElapsed(Math.round((Date.now()-startTime)/1000)),1000);
+        return()=>clearInterval(t);
+      },[startTime]);
+      useEffect(()=>{
+        if(timer===null){clearInterval(timerRef.current);return;}
+        setTimerSecs(timer);clearInterval(timerRef.current);
+        timerRef.current=setInterval(()=>setTimerSecs(s=>{if(s<=1){clearInterval(timerRef.current);setTimer(null);return 90;}return s-1;}),1000);
+        return()=>clearInterval(timerRef.current);
+      },[timer]);
+      const updateSet=(ei,si,f,v)=>setExSets(p=>{const n=p.map(e=>({...e,sets:e.sets.map(s=>({...s}))}));n[ei].sets[si][f]=v;return n;});
+      const toggleSet=(ei,si)=>setExSets(p=>{
+        const n=p.map(e=>({...e,sets:e.sets.map(s=>({...s}))}));
+        const s=n[ei].sets[si];s.done=!s.done;
+        if(s.done){
+          setTimer(90);
+          const ex=n[ei],w=parseFloat(s.w||0),r=parseInt(s.r||0);
+          const old=data.prs.find(p=>p.eid===ex.id);
+          if(w>0&&r>0&&(!old||e1rm(w,r)>old.e1rm)){setPrFlash({name:ex.name,w,r,est:e1rm(w,r)});setTimeout(()=>setPrFlash(null),3000);}
+        }
+        return n;
+      });
+      const done=exSets.reduce((a,e)=>a+e.sets.filter(s=>s.done).length,0);
+      const total=exSets.reduce((a,e)=>a+e.sets.length,0);
+      const m=Math.floor(elapsed/60),s=elapsed%60;
+      return(
+        <div style={{position:'fixed',inset:0,background:BG,zIndex:100,overflowY:'auto',paddingBottom:100}}>
+          {prFlash&&(
+            <div style={{position:'fixed',top:0,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,'+GOLD+',#F97316)',color:INV,padding:'12px 24px',borderRadius:'0 0 16px 16px',zIndex:200,textAlign:'center',animation:'prBurst 0.6s ease',maxWidth:400,width:'100%'}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:900}}>🏆 YANGI REKORD!</div>
+              <div style={{fontSize:14,fontWeight:700}}>{prFlash.name}: {prFlash.w}kg × {prFlash.r} (1RM ~ {prFlash.est}kg)</div>
+            </div>
+          )}
+          <div style={{background:S1,borderBottom:'1px solid '+BD,padding:'52px 16px 16px',position:'sticky',top:0,zIndex:10,boxShadow:'0 2px 8px rgba(0,0,0,0.04)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+              <div>
+                <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900,color:day.color}}>{day.name}</h2>
+                <p style={{color:T2,fontSize:12}}>{day.muscles}</p>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:800,color:T1}}>{m}:{s<10?'0':''}{s}</div>
+                <div style={{fontSize:10,color:T2}}>{done}/{total} set</div>
+              </div>
+            </div>
+            <div style={{height:4,background:S3,borderRadius:4,overflow:'hidden'}}>
+              <div style={{width:pct(done,total)+'%',height:'100%',background:day.color,transition:'width 0.4s ease'}}/>
+            </div>
+          </div>
+          {timer!==null&&(
+            <div style={{margin:16,background:GOLD+'15',border:'1px solid '+GOLD+'44',borderRadius:14,padding:'12px 20px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div>
+                <p style={{color:GOLD,fontSize:11,letterSpacing:2,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700}}>⏱ DAM OLISH</p>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:900,color:GOLD,lineHeight:1}}>{timerSecs}s</div>
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                <Btn onClick={()=>setTimer(null)} outline color={GOLD} style={{padding:'6px 12px',fontSize:12}}>O'TKAZ</Btn>
+                <Btn onClick={()=>setTimer(120)} color={GOLD} style={{padding:'6px 12px',fontSize:12}}>+120s</Btn>
+              </div>
+            </div>
+          )}
+          <div style={{padding:'0 16px'}}>
+            {exSets.map((ex,ei)=>(
+              <div key={ex.id} style={{marginBottom:12}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,paddingTop:8}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <h3 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:800,color:T1}}>{ex.name}</h3>
+                      {ex.tag==='main'&&<Pill color={ACC}>ASOSIY</Pill>}
+                      {ex.tag==='superset'&&<Pill color={TEAL}>SUPERSET</Pill>}
+                      {ex.tag==='iso'&&<Pill color={PUR}>ISO</Pill>}
+                    </div>
+                    <p style={{color:T2,fontSize:12}}>{ex.muscle} · {ex.reps} tak · RIR {ex.rir}</p>
+                  </div>
+                </div>
+                <div style={{background:S1,border:'1px solid '+BD,borderRadius:12,overflow:'hidden',boxShadow:SHADOW}}>
+                  <div style={{display:'grid',gridTemplateColumns:'32px 1fr 1fr 40px',padding:'8px 14px',borderBottom:'1px solid '+BD,background:S3}}>
+                    {['SET','VAZN kg','TAKROR',''].map((h,i)=><span key={i} style={{fontSize:10,color:T2,letterSpacing:1,fontWeight:600}}>{h}</span>)}
+                  </div>
+                  {ex.sets.map((s,si)=>(
+                    <div key={si} style={{display:'grid',gridTemplateColumns:'32px 1fr 1fr 40px',padding:'8px 14px',borderBottom:si<ex.sets.length-1?'1px solid '+BD:'none',background:s.done?day.color+'11':'transparent',transition:'background 0.3s'}}>
+                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700,color:s.done?day.color:T3,alignSelf:'center'}}>{si+1}</span>
+                      <input type="number" value={s.w} onChange={e=>updateSet(ei,si,'w',e.target.value)} placeholder="0" style={{background:S3,border:'1px solid '+BD,borderRadius:8,color:T1,padding:'6px 8px',fontSize:16,fontWeight:700,width:'90%',fontFamily:"'Barlow Condensed',sans-serif",outline:'none'}}/>
+                      <input type="number" value={s.r} onChange={e=>updateSet(ei,si,'r',e.target.value)} placeholder="0" style={{background:S3,border:'1px solid '+BD,borderRadius:8,color:T1,padding:'6px 8px',fontSize:16,fontWeight:700,width:'90%',marginLeft:'10%',fontFamily:"'Barlow Condensed',sans-serif",outline:'none'}}/>
+                      <button onClick={()=>toggleSet(ei,si)} style={{background:s.done?day.color:S3,border:'none',borderRadius:8,width:32,height:32,cursor:'pointer',color:s.done?INV:T3,fontSize:16,alignSelf:'center',transition:'all 0.2s'}}>{s.done?'✓':'○'}</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{padding:16,display:'flex',gap:10}}>
+            <Btn onClick={onCancel} outline color={RED} style={{flex:1}}>✕ BEKOR</Btn>
+            <Btn onClick={()=>onFinish(exSets,elapsed)} color={ACC} style={{flex:2,fontSize:16}}>✓ TUGATISH</Btn>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── WORKOUT TAB ── */
+    function WorkoutTab({data,setData,setActiveWorkout}){
+      const [subTab,setSubTab]=useState('programs');
+      const [selProg,setSelProg]=useState(null);
+      if(selProg) return <ProgramDetail prog={selProg} onBack={()=>setSelProg(null)} onStart={day=>{setActiveWorkout({prog:selProg,day,startTime:Date.now()});setSelProg(null);}}/>;
+      return(
+        <div style={{padding:'0 16px 16px'}} className="su">
+          <div style={{padding:'52px 0 16px'}}>
+            <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:34,fontWeight:900,color:T1}}>TRENING 💪</h1>
+          </div>
+          <SubTabs tabs={[['programs','DASTURLAR'],['history','TARIX'],['library','KUTUBXONA']]} active={subTab} onChange={setSubTab}/>
+          {subTab==='programs'&&<div>{PROGRAMS.map(p=>(
+            <Card key={p.id} style={{marginBottom:12}} onClick={()=>setSelProg(p)}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+                <div>
+                  <h3 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:900,color:p.color}}>{p.full}</h3>
+                  <p style={{color:T2,fontSize:12}}>{p.goal}</p>
+                </div>
+                <Pill color={p.color}>{p.daysPerWeek}x/hafta</Pill>
+              </div>
+              <div style={{display:'flex',gap:8}}>
+                {p.days.map(d=>(
+                  <div key={d.id} style={{flex:1,background:d.color+'11',border:'1px solid '+d.color+'33',borderRadius:8,padding:'6px 4px',textAlign:'center'}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:13,fontWeight:800,color:d.color}}>{d.name}</div>
+                    <div style={{fontSize:9,color:T2}}>{d.exercises.length} mashq</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))}</div>}
+          {subTab==='history'&&<div>
+            {data.woLogs.slice().reverse().map((log,i)=>{
+              const pd=PROGRAMS.find(p=>p.id===log.prog);
+              const dd=pd?pd.days.find(d=>d.id===log.day):null;
+              return(
+                <Card key={i} style={{marginBottom:10}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <div>
+                      <h3 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:800,color:dd?dd.color:T1}}>{dd?dd.name:log.day}</h3>
+                      <p style={{color:T2,fontSize:12}}>{fmt(log.date)}</p>
+                    </div>
+                    {pd&&<Pill color={dd?dd.color:T2}>{pd.name}</Pill>}
+                  </div>
+                  <div style={{display:'flex',gap:16}}>
+                    <div><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:800,color:T1}}>{log.dur}</span><span style={{color:T2,fontSize:11}}> min</span></div>
+                    <div><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:800,color:T1}}>{(log.vol/1000).toFixed(1)}</span><span style={{color:T2,fontSize:11}}>t</span></div>
+                    <div><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:800,color:T1}}>{log.exs?log.exs.length:0}</span><span style={{color:T2,fontSize:11}}> mashq</span></div>
+                  </div>
+                </Card>
+              );
+            })}
+            {data.woLogs.length===0&&<p style={{color:T2,textAlign:'center',padding:40}}>Hali trening yo'q</p>}
+          </div>}
+          {subTab==='library'&&<ExLibrary/>}
+        </div>
+      );
+    }
+    function ProgramDetail({prog,onBack,onStart}){
+      return(
+        <div style={{padding:'0 16px 16px'}} className="su">
+          <div style={{padding:'52px 0 16px',display:'flex',alignItems:'center',gap:12}}>
+            <button onClick={onBack} style={{background:S1,border:'1px solid '+BD,borderRadius:10,padding:'8px 12px',color:T1,cursor:'pointer',fontSize:18,boxShadow:SHADOW}}>←</button>
+            <div>
+              <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900,color:prog.color}}>{prog.full}</h1>
+              <p style={{color:T2,fontSize:12}}>{prog.goal} · {prog.daysPerWeek}x hafta</p>
+            </div>
+          </div>
+          {prog.days.map(day=>(
+            <Card key={day.id} style={{marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+                <div>
+                  <h3 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:900,color:day.color}}>{day.name}</h3>
+                  <p style={{color:T2,fontSize:12}}>{day.muscles}</p>
+                </div>
+                <Btn onClick={()=>onStart(day)} color={day.color} style={{padding:'8px 16px',fontSize:13}}>BOSHLASH</Btn>
+              </div>
+              {day.exercises.map((ex,i)=>(
+                <div key={ex.id} style={{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:i<day.exercises.length-1?'1px solid '+BD:'none'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:13,color:T3,width:16}}>{i+1}</span>
+                    <div>
+                      <p style={{fontSize:14,fontWeight:500,color:T1}}>{ex.name}</p>
+                      <p style={{color:T2,fontSize:11}}>{ex.muscle}</p>
+                    </div>
+                  </div>
+                  <p style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:day.color}}>{ex.sets}×{ex.reps}</p>
+                </div>
+              ))}
+            </Card>
+          ))}
+        </div>
+      );
+    }
+    function ExLibrary(){
+      const exs=[
+        {name:'Bench Press',muscle:"Ko'krak",equip:'Shtanga',diff:"O'rta",tips:["Kurak siqilgan","Oyoqlar yerda","Ko'krakga tegdiring"]},
+        {name:'Pull-up',muscle:'Orqa',equip:'Turnik',diff:'Qiyin',tips:["Ko'krakni chiqaring","Sekin tushing","To'la harakat bajaring"]},
+        {name:'Back Squat',muscle:'Sonlar',equip:'Shtanga',diff:'Qiyin',tips:["Tizzalar parallel","Orqani tekis","Chuqur o'tiring"]},
+        {name:'Overhead Press',muscle:'Yelka',equip:'Shtanga',diff:"O'rta",tips:["Yelkalarni siqing","Qornizni tortib turing","Boshni to'g'ri ushling"]},
+        {name:'Romanian Deadlift',muscle:'Dumba',equip:'Shtanga',diff:"O'rta",tips:["Orqani tekis","Dumbani his qiling","Tizzalar oz bukilsin"]},
+        {name:'Lateral Raise',muscle:'Yelka yon',equip:'Gantel',diff:'Oson',tips:["Tirsak biroz bukilgan","Yelkadan ko'taring","Sekin tushing"]},
+      ];
+      const [sel,setSel]=useState(null);
+      return(
+        <div>{exs.map((ex,i)=>{
+          const open=sel===i;
+          return(
+            <Card key={ex.name} style={{marginBottom:10}} onClick={()=>setSel(open?null:i)}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <div>
+                  <h3 style={{fontSize:16,fontWeight:600,marginBottom:2,color:T1}}>{ex.name}</h3>
+                  <p style={{color:T2,fontSize:12}}>{ex.muscle} · {ex.equip}</p>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <Pill color={ex.diff==='Qiyin'?RED:ex.diff==="O'rta"?GOLD:TEAL}>{ex.diff}</Pill>
+                  <span style={{color:T2,fontSize:12}}>{open?'▲':'▼'}</span>
+                </div>
+              </div>
+              {open&&(
+                <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid '+BD}}>
+                  <p style={{color:T2,fontSize:12,marginBottom:8,fontWeight:600}}>💡 MASLAHATLAR:</p>
+                  {ex.tips.map((t,j)=><p key={j} style={{color:T1,fontSize:13,marginBottom:4,paddingLeft:12}}>• {t}</p>)}
+                </div>
+              )}
+            </Card>
+          );
+        })}</div>
+      );
+    }
+
+    /* ── NUTRITION TAB ── */
+    function NutritionTab({data,setData}){
+      const [search,setSearch]=useState('');
+      const [gram,setGram]=useState(100);
+      const [selFood,setSelFood]=useState(null);
+      const [meal,setMeal]=useState('Ertalab');
+      const nut=data.todayNut,tgt=data.user.targets;
+      const calData=data.nutLogs.slice(-7).map(l=>({d:dayShort(l.date),cal:l.cal}));
+      const filtered=search.length>0?FOODS.filter(f=>f.name.toLowerCase().includes(search.toLowerCase())):FOODS.slice(0,12);
+      const addFood=food=>{
+        const r=gram/100;
+        const item={foodId:food.id,name:food.name,e:food.e,gram,cal:Math.round(food.cal*r),p:Math.round(food.p*r*10)/10,f:Math.round(food.f*r*10)/10,c:Math.round(food.c*r*10)/10,meal};
+        setData(prev=>{const n=prev.todayNut;return {...prev,todayNut:{...n,meals:[...n.meals,item],cal:n.cal+item.cal,p:Math.round((n.p+item.p)*10)/10,f:Math.round((n.f+item.f)*10)/10,c:Math.round((n.c+item.c)*10)/10}};});
+        setSelFood(null);setSearch('');setGram(100);
+      };
+      const removeFood=idx=>{
+        setData(prev=>{
+          const n=prev.todayNut,item=n.meals[idx];
+          const meals=n.meals.filter((_,i)=>i!==idx);
+          return {...prev,todayNut:{...n,meals,cal:Math.max(0,n.cal-item.cal),p:Math.max(0,Math.round((n.p-item.p)*10)/10),f:Math.max(0,Math.round((n.f-item.f)*10)/10),c:Math.max(0,Math.round((n.c-item.c)*10)/10)}};
+        });
+      };
+      const addWater=()=>setData(prev=>{const n=prev.todayNut;return {...prev,todayNut:{...n,water:Math.min(n.water+1,tgt.water)}};});
+      return(
+        <div style={{padding:'0 16px 16px'}} className="su">
+          <div style={{padding:'52px 0 16px'}}>
+            <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:34,fontWeight:900,color:T1}}>OVQAT 🥗</h1>
+          </div>
+          <Card style={{marginBottom:12}}>
+            <div style={{display:'flex',alignItems:'center',gap:20,marginBottom:16}}>
+              <CalRing cal={nut.cal} target={tgt.cal} size={110}/>
+              <div style={{flex:1}}>
+                <MacroBar label="Oqsil" val={nut.p} max={tgt.p} color={BLUE}/>
+                <MacroBar label="Yog'" val={nut.f} max={tgt.f} color={GOLD}/>
+                <MacroBar label="Uglevod" val={nut.c} max={tgt.c} color={PUR}/>
+              </div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+              {[['Qoldi',Math.max(0,tgt.cal-nut.cal),ACC],['Oqsil',Math.round(nut.p)+'g',BLUE],["Yog'",Math.round(nut.f)+'g',GOLD]].map(item=>(
+                <div key={item[0]} style={{background:S3,borderRadius:10,padding:10,textAlign:'center'}}>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:800,color:item[2]}}>{typeof item[1]==='number'?Math.round(item[1]):item[1]}</div>
+                  <div style={{fontSize:9,color:T2}}>{item[0]}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card style={{marginBottom:12}}>
+            <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:12,fontFamily:"'Barlow Condensed',sans-serif"}}>HAFTALIK KALORIYA</p>
+            <ResponsiveContainer width="100%" height={80}>
+              <BarChart data={calData} margin={{top:0,right:0,bottom:0,left:0}}>
+                <Bar dataKey="cal" fill={ACC} radius={[4,4,0,0]}/>
+                <XAxis dataKey="d" axisLine={false} tickLine={false} tick={{fill:T2,fontSize:10}}/>
+                <Tooltip contentStyle={{background:S1,border:'1px solid '+BD,borderRadius:8,color:T1,fontSize:12}} cursor={{fill:ACC+'15'}}/>
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+          <Card style={{marginBottom:12}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+              <p style={{color:T2,fontSize:11,letterSpacing:2,fontFamily:"'Barlow Condensed',sans-serif"}}>SUV 💧</p>
+              <button onClick={addWater} style={{background:BLUE,border:'none',borderRadius:8,color:INV,padding:'4px 14px',fontWeight:700,cursor:'pointer',fontSize:13}}>+ Stakan</button>
+            </div>
+            <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+              {Array.from({length:tgt.water},(_,i)=>(
+                <div key={i} style={{width:28,height:32,borderRadius:6,background:i<nut.water?BLUE+'22':S3,border:'1px solid '+(i<nut.water?BLUE+'44':BD),display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>{i<nut.water?'💧':''}</div>
+              ))}
+            </div>
+            <p style={{color:T2,fontSize:12,marginTop:8}}>{nut.water} / {tgt.water} stakan</p>
+          </Card>
+          {nut.meals.length>0&&(
+            <Card style={{marginBottom:12}}>
+              <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:10,fontFamily:"'Barlow Condensed',sans-serif"}}>BUGUNGI OVQATLAR</p>
+              {['Ertalab','Tushlik','Kechki','Snack'].map(m=>{
+                const items=[];
+                nut.meals.forEach((item,idx)=>{if(item.meal===m)items.push({item,idx});});
+                if(!items.length)return null;
+                return(
+                  <div key={m} style={{marginBottom:12}}>
+                    <p style={{color:T2,fontSize:12,fontWeight:600,marginBottom:6}}>{m}</p>
+                    {items.map(entry=>(
+                      <div key={entry.idx} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 0',borderBottom:'1px solid '+BD}}>
+                        <p style={{fontSize:13,color:T1}}>{entry.item.e} {entry.item.name} <span style={{color:T2}}>({entry.item.gram}g)</span></p>
+                        <div style={{display:'flex',alignItems:'center',gap:8}}>
+                          <p style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color:ACC}}>{entry.item.cal}kkal</p>
+                          <button onClick={()=>removeFood(entry.idx)} style={{background:RED+'15',border:'none',borderRadius:6,width:22,height:22,cursor:'pointer',color:RED,fontSize:12}}>✕</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </Card>
+          )}
+          <Card>
+            <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:12,fontFamily:"'Barlow Condensed',sans-serif"}}>OVQAT QO'SHISH</p>
+            <div style={{display:'flex',gap:6,marginBottom:12}}>
+              {['Ertalab','Tushlik','Kechki','Snack'].map(m=>(
+                <button key={m} onClick={()=>setMeal(m)} style={{flex:1,padding:'6px 0',borderRadius:8,border:'1px solid '+(meal===m?ACC:BD),background:meal===m?ACC+'15':'transparent',color:meal===m?ACC:T2,fontSize:11,cursor:'pointer',fontWeight:600,transition:'all 0.2s'}}>{m}</button>
+              ))}
+            </div>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Ovqat qidirish..." style={{width:'100%',background:S3,border:'1px solid '+BD,borderRadius:10,color:T1,padding:'10px 14px',fontSize:14,outline:'none',marginBottom:10}}/>
+            {selFood?(
+              <div style={{background:S3,border:'1px solid '+ACC,borderRadius:12,padding:14,marginBottom:10}}>
+                <div style={{display:'flex',justifyContent:'space-between',marginBottom:12}}>
+                  <h4 style={{fontSize:15,fontWeight:600,color:T1}}>{selFood.e} {selFood.name}</h4>
+                  <button onClick={()=>setSelFood(null)} style={{background:'none',border:'none',color:T2,cursor:'pointer',fontSize:18}}>✕</button>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
+                  <span style={{color:T2,fontSize:13}}>Gramm:</span>
+                  <input type="number" value={gram} onChange={e=>setGram(Math.max(1,parseInt(e.target.value)||1))} style={{background:S1,border:'1px solid '+BD,borderRadius:8,color:T1,padding:'6px 12px',fontSize:16,fontWeight:700,width:80,fontFamily:"'Barlow Condensed',sans-serif",outline:'none'}}/>
+                </div>
+                <div style={{display:'flex',gap:10,marginBottom:12}}>
+                  {[['Kkal',Math.round(selFood.cal*gram/100),ACC],['Oqsil',Math.round(selFood.p*gram/100)+'g',BLUE],["Yog'",Math.round(selFood.f*gram/100)+'g',GOLD],['Uglevod',Math.round(selFood.c*gram/100)+'g',PUR]].map(item=>(
+                    <div key={item[0]} style={{flex:1,textAlign:'center'}}>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:800,color:item[2]}}>{item[1]}</div>
+                      <div style={{fontSize:10,color:T2}}>{item[0]}</div>
+                    </div>
+                  ))}
+                </div>
+                <Btn onClick={()=>addFood(selFood)} color={ACC} style={{width:'100%'}}>+ QO'SHISH</Btn>
+              </div>
+            ):(
+              <div style={{maxHeight:300,overflowY:'auto'}}>
+                {filtered.map(f=>(
+                  <div key={f.id} onClick={()=>setSelFood(f)} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid '+BD,cursor:'pointer'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{fontSize:18}}>{f.e}</span>
+                      <div>
+                        <p style={{fontSize:13,fontWeight:500,color:T1}}>{f.name}</p>
+                        <p style={{color:T2,fontSize:11}}>{f.cat}</p>
+                      </div>
+                    </div>
+                    <div style={{textAlign:'right'}}>
+                      <p style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:15,fontWeight:700,color:ACC}}>{f.cal} kkal</p>
+                      <p style={{color:T2,fontSize:10}}>P:{f.p}g F:{f.f}g U:{f.c}g</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      );
+    }
+
+    /* ── BODY TAB ── */
+    function BodyTab({data,setData}){
+      const [subTab,setSubTab]=useState('body');
+      const [showAdd,setShowAdd]=useState(false);
+      const [form,setForm]=useState({wt:'',waist:'',chest:'',arms:'',bf:''});
+      const [recForm,setRecForm]=useState({sleep:'7',energy:7,soreness:2,stress:2});
+      const logs=data.bodyLogs,last=logs[logs.length-1],first=logs[0];
+      const wData=logs.map(l=>({d:dayShort(l.date),wt:l.wt}));
+      const addLog=()=>{
+        const n={date:td(),wt:parseFloat(form.wt)||last.wt,waist:parseFloat(form.waist)||last.waist,chest:parseFloat(form.chest)||last.chest,arms:parseFloat(form.arms)||last.arms,bf:parseFloat(form.bf)||last.bf};
+        setData(p=>({...p,bodyLogs:[...p.bodyLogs,n]}));setShowAdd(false);setForm({wt:'',waist:'',chest:'',arms:'',bf:''});
+      };
+      const addRec=()=>{
+        const l={date:td(),sleep:parseFloat(recForm.sleep)||7,energy:recForm.energy,soreness:recForm.soreness,stress:recForm.stress};
+        setData(p=>({...p,recLogs:[...p.recLogs,l]}));
+      };
+      return(
+        <div style={{padding:'0 16px 16px'}} className="su">
+          <div style={{padding:'52px 0 16px'}}>
+            <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:34,fontWeight:900,color:T1}}>TANA 📊</h1>
+          </div>
+          <SubTabs tabs={[['body','TANA'],['recovery','TIKLANISH'],['analytics','TAHLIL']]} active={subTab} onChange={setSubTab}/>
+          {subTab==='body'&&(
+            <div>
+              <Card style={{marginBottom:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
+                  <div>
+                    <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:6,fontFamily:"'Barlow Condensed',sans-serif"}}>HOZIRGI VAZN</p>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:52,fontWeight:900,color:T1,lineHeight:1}}>{last&&last.wt}<span style={{fontSize:20,color:T2}}> kg</span></div>
+                    {last&&first&&<div style={{color:last.wt<first.wt?TEAL:RED,fontSize:13,fontWeight:700,marginTop:8}}>{(last.wt-first.wt).toFixed(1)}kg (14 kun)</div>}
+                  </div>
+                  <Btn onClick={()=>setShowAdd(true)} color={ACC} style={{padding:'8px 14px',fontSize:13}}>+ QO'SHISH</Btn>
+                </div>
+                <ResponsiveContainer width="100%" height={80}>
+                  <AreaChart data={wData} margin={{top:0,right:0,bottom:0,left:0}}>
+                    <defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={ACC} stopOpacity={0.2}/><stop offset="95%" stopColor={ACC} stopOpacity={0}/></linearGradient></defs>
+                    <Area type="monotone" dataKey="wt" stroke={ACC} strokeWidth={2} fill="url(#wg)"/>
+                    <XAxis dataKey="d" axisLine={false} tickLine={false} tick={{fill:T2,fontSize:9}}/>
+                    <Tooltip contentStyle={{background:S1,border:'1px solid '+BD,borderRadius:8,color:T1,fontSize:11}} cursor={{stroke:ACC+'44'}}/>
+                  </AreaChart>
+                </ResponsiveContainer>
+              </Card>
+              <Card style={{marginBottom:12}}>
+                <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:12,fontFamily:"'Barlow Condensed',sans-serif"}}>TANA KOMPOZITSIYASI</p>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                  {[["Yog' foizi",last?last.bf+'%':'',GOLD],["Muskul (est)",last?Math.round(last.wt*(1-last.bf/100))+'kg':'',BLUE],['BMI',last?Math.round(last.wt/Math.pow(data.user.ht/100,2)*10)/10:'',ACC],['Maqsad','REKOMP',PUR]].map(item=>(
+                    <div key={item[0]} style={{background:S3,borderRadius:10,padding:12,textAlign:'center'}}>
+                      <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:800,color:item[2]}}>{item[1]}</div>
+                      <div style={{fontSize:11,color:T2}}>{item[0]}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card style={{marginBottom:12}}>
+                <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:12,fontFamily:"'Barlow Condensed',sans-serif"}}>O'LCHAMLAR (sm)</p>
+                {[["Ko'krak",'chest',ACC],['Bel','waist',RED],["Qo'l",'arms',BLUE]].map(([lbl,key,clr])=>{
+                  const cur=last?last[key]:null,prev=logs.length>1?logs[logs.length-2][key]:null;
+                  const diff=cur&&prev?+(cur-prev).toFixed(1):null;
+                  return(
+                    <div key={key} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid '+BD}}>
+                      <span style={{color:T2,fontSize:13}}>{lbl}</span>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        {diff!==null&&<span style={{fontSize:11,color:diff>0?(key==='waist'?RED:TEAL):(key==='waist'?TEAL:RED)}}>{diff>0?'+':''}{diff}sm</span>}
+                        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:800,color:clr}}>{cur}<span style={{fontSize:12,color:T2}}>sm</span></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </Card>
+              {showAdd&&(
+                <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.4)',zIndex:50,display:'flex',alignItems:'flex-end'}} onClick={()=>setShowAdd(false)}>
+                  <div style={{width:'100%',background:S1,borderRadius:'20px 20px 0 0',padding:24,boxShadow:'0 -4px 24px rgba(0,0,0,0.1)'}} onClick={e=>e.stopPropagation()}>
+                    <h3 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:900,marginBottom:20,color:T1}}>TANA LOGI QO'SHISH</h3>
+                    {[['Vazn (kg)','wt'],["Ko'krak (sm)",'chest'],['Bel (sm)','waist'],["Qo'l (sm)",'arms'],["Yog' %",'bf']].map(([label,key])=>(
+                      <div key={key} style={{marginBottom:12}}>
+                        <p style={{color:T2,fontSize:12,marginBottom:4}}>{label}</p>
+                        <input type="number" value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))} placeholder={last?String(last[key]):'0'} style={{width:'100%',background:S3,border:'1px solid '+BD,borderRadius:10,color:T1,padding:'10px 14px',fontSize:16,outline:'none'}}/>
+                      </div>
+                    ))}
+                    <Btn onClick={addLog} color={ACC} style={{width:'100%',marginTop:8,fontSize:16}}>✓ SAQLASH</Btn>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          {subTab==='recovery'&&(
+            <div>
+              <Card style={{marginBottom:12}}>
+                <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:14,fontFamily:"'Barlow Condensed',sans-serif"}}>BUGUNGI TIKLANISH</p>
+                <div style={{marginBottom:16}}>
+                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                    <span style={{fontSize:13,color:T1}}>Uyqu (soat) 😴</span>
+                    <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700,color:BLUE}}>{recForm.sleep}</span>
+                  </div>
+                  <input type="number" value={recForm.sleep} onChange={e=>setRecForm(p=>({...p,sleep:e.target.value}))} style={{width:'100%',background:S3,border:'1px solid '+BD,borderRadius:10,color:T1,padding:'8px 14px',fontSize:16,outline:'none'}}/>
+                </div>
+                {[['Energiya (1-10) ⚡','energy',10,ACC],["Og'riq (1-5) 🤕",'soreness',5,RED],['Stress (1-5) 😓','stress',5,GOLD]].map(([lbl,key,max,clr])=>(
+                  <div key={key} style={{marginBottom:16}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
+                      <span style={{fontSize:13,color:T1}}>{lbl}</span>
+                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700,color:clr}}>{recForm[key]}</span>
+                    </div>
+                    <input type="range" min={1} max={max} value={recForm[key]} onChange={e=>setRecForm(p=>({...p,[key]:parseInt(e.target.value)}))} style={{width:'100%',accentColor:clr}}/>
+                  </div>
+                ))}
+                <Btn onClick={addRec} color={TEAL} style={{width:'100%'}}>✓ SAQLASH</Btn>
+              </Card>
+              <Card>
+                <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:14,fontFamily:"'Barlow Condensed',sans-serif"}}>SO'NGGI 7 KUN</p>
+                <ResponsiveContainer width="100%" height={100}>
+                  <BarChart data={data.recLogs.slice(-7).map(l=>({d:dayShort(l.date),sleep:l.sleep,energy:l.energy}))} margin={{top:0,right:0,bottom:0,left:0}}>
+                    <Bar dataKey="sleep" fill={BLUE} radius={[4,4,0,0]} name="Uyqu"/>
+                    <Bar dataKey="energy" fill={ACC} radius={[4,4,0,0]} name="Energiya"/>
+                    <XAxis dataKey="d" axisLine={false} tickLine={false} tick={{fill:T2,fontSize:9}}/>
+                    <Tooltip contentStyle={{background:S1,border:'1px solid '+BD,borderRadius:8,color:T1,fontSize:11}}/>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+            </div>
+          )}
+          {subTab==='analytics'&&(
+            <div>
+              <Card style={{marginBottom:12}}>
+                <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:14,fontFamily:"'Barlow Condensed',sans-serif"}}>KUCH PROGRESSI (1RM)</p>
+                {data.prs.map(pr=>(
+                  <div key={pr.eid} style={{marginBottom:12}}>
+                    <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                      <span style={{fontSize:13,color:T1}}>{pr.name}</span>
+                      <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:15,fontWeight:700,color:GOLD}}>{pr.e1rm}kg</span>
+                    </div>
+                    <div style={{height:6,background:S3,borderRadius:4}}>
+                      <div style={{width:Math.min(100,pr.e1rm/200*100)+'%',height:'100%',background:GOLD,borderRadius:4}}/>
+                    </div>
+                  </div>
+                ))}
+              </Card>
+              <Card style={{marginBottom:12}}>
+                <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:14,fontFamily:"'Barlow Condensed',sans-serif"}}>HAFTALIK HAJM (t)</p>
+                <ResponsiveContainer width="100%" height={100}>
+                  <BarChart data={data.woLogs.slice(-6).map(l=>({d:dayShort(l.date),vol:Math.round(l.vol/1000*10)/10}))} margin={{top:0,right:0,bottom:0,left:0}}>
+                    <Bar dataKey="vol" fill={PUR} radius={[4,4,0,0]}/>
+                    <XAxis dataKey="d" axisLine={false} tickLine={false} tick={{fill:T2,fontSize:9}}/>
+                    <YAxis axisLine={false} tickLine={false} tick={{fill:T2,fontSize:9}} width={28}/>
+                    <Tooltip contentStyle={{background:S1,border:'1px solid '+BD,borderRadius:8,color:T1,fontSize:11}}/>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Card>
+              <Card>
+                <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:12,fontFamily:"'Barlow Condensed',sans-serif"}}>UMUMIY STATISTIKA</p>
+                <StatLine label="Jami trening" value={data.woCount+' ta'}/>
+                <StatLine label="Shaxsiy rekordlar" value={data.prs.length+' ta'} color={GOLD}/>
+                <StatLine label="Streak" value={data.streak+' kun'} color={ACC}/>
+                <StatLine label="Hozirgi vazn" value={last?last.wt+'kg':''} color={T1}/>
+                {last&&first&&<StatLine label="Vazn o'zgarishi" value={(last.wt-first.wt).toFixed(1)+'kg'} color={last.wt<first.wt?TEAL:RED}/>}
+              </Card>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    /* ── AI TAB ── */
+    function AITab({data}){
+      const lb=data.bodyLogs[data.bodyLogs.length-1];
+      const init="Assalomu alaykum, "+data.user.name+"! Men sizning shaxsiy fitness murabbiyingizman. 🤖\n\nJoriy ko'rsatkichlar:\n• Streak: "+data.streak+" kun 🔥\n• Vazn: "+(lb?lb.wt:'?')+" kg\n• PRlar: "+data.prs.length+" ta 🏆\n\nQanday yordam kerak?";
+      const [msgs,setMsgs]=useState([{role:'assistant',content:init}]);
+      const [input,setInput]=useState('');
+      const endRef=useRef(null);
+      const quickQs=["Bugungi trening maslahat","Rekomp ovqatlanish","Lateral Raise texnika","PR yaqinmi?","Tiklanish","Oqsil miqdori","Motivatsiya ber!"];
+      useEffect(()=>{endRef.current&&endRef.current.scrollIntoView({behavior:'smooth'});},[msgs]);
+      const send=(text)=>{
+        const q=text||input.trim();if(!q)return;
+        setInput('');
+        setMsgs(p=>[...p,{role:'user',content:q}]);
+        setTimeout(()=>{
+          const reply=aiReply(q,data);
+          setMsgs(p=>[...p,{role:'assistant',content:reply}]);
+        },400);
+      };
+      return(
+        <div style={{display:'flex',flexDirection:'column',height:'100vh',paddingTop:52}}>
+          <div style={{padding:'8px 16px 12px',borderBottom:'1px solid '+BD,background:S1}}>
+            <div style={{display:'flex',alignItems:'center',gap:10}}>
+              <div style={{width:40,height:40,borderRadius:12,background:'linear-gradient(135deg,'+ACC+'22,'+PUR+'22)',border:'1px solid '+ACC+'33',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>🤖</div>
+              <div>
+                <h2 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:800,color:T1}}>AI MURABBIY</h2>
+                <p style={{color:TEAL,fontSize:11,fontWeight:600}}>● Doim tayyor</p>
+              </div>
+            </div>
+          </div>
+          <div style={{flex:1,overflowY:'auto',padding:'12px 16px',background:BG}}>
+            {msgs.map((m,i)=>{
+              const isUser=m.role==='user';
+              return(
+                <div key={i} style={{marginBottom:12,display:'flex',justifyContent:isUser?'flex-end':'flex-start'}}>
+                  {!isUser&&<div style={{width:28,height:28,borderRadius:8,background:ACC+'15',border:'1px solid '+ACC+'33',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,marginRight:8,flexShrink:0,alignSelf:'flex-end'}}>🤖</div>}
+                  <div style={{maxWidth:'80%',padding:'10px 14px',borderRadius:isUser?'16px 16px 4px 16px':'16px 16px 16px 4px',background:isUser?ACC:S1,border:isUser?'none':'1px solid '+BD,boxShadow:SHADOW}}>
+                    <p style={{color:isUser?INV:T1,fontSize:14,lineHeight:1.5,whiteSpace:'pre-wrap'}}>{m.content}</p>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={endRef}/>
+          </div>
+          <div style={{padding:'8px 16px',display:'flex',gap:6,overflowX:'auto',borderTop:'1px solid '+BD,background:S1}}>
+            {quickQs.map(q=><button key={q} onClick={()=>send(q)} style={{flexShrink:0,background:ACC+'0D',border:'1px solid '+ACC+'22',borderRadius:20,padding:'6px 12px',color:ACC,fontSize:11,cursor:'pointer',whiteSpace:'nowrap',fontWeight:600}}>{q}</button>)}
+          </div>
+          <div style={{padding:'8px 16px 24px',display:'flex',gap:8,borderTop:'1px solid '+BD,background:S1}}>
+            <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')send();}} placeholder="Savol yozing..." style={{flex:1,background:S3,border:'1px solid '+BD,borderRadius:12,color:T1,padding:'10px 14px',fontSize:14,outline:'none'}}/>
+            <button onClick={()=>send()} disabled={!input.trim()} style={{background:ACC,border:'none',borderRadius:12,width:44,height:44,cursor:'pointer',fontSize:16,flexShrink:0,opacity:!input.trim()?0.4:1,color:INV,fontWeight:700,transition:'opacity 0.2s'}}>↑</button>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── SETTINGS TAB ── */
+    function SettingsTab({data,setData}){
+      const [form,setForm]=useState({name:data.user.name,age:String(data.user.age),wt:String(data.user.wt),ht:String(data.user.ht),cal:String(data.user.targets.cal),p:String(data.user.targets.p),f:String(data.user.targets.f),c:String(data.user.targets.c),water:String(data.user.targets.water)});
+      const save=()=>{
+        setData(prev=>({...prev,user:{...prev.user,name:form.name,age:parseInt(form.age)||prev.user.age,wt:parseFloat(form.wt)||prev.user.wt,ht:parseInt(form.ht)||prev.user.ht,targets:{cal:parseInt(form.cal)||prev.user.targets.cal,p:parseInt(form.p)||prev.user.targets.p,f:parseInt(form.f)||prev.user.targets.f,c:parseInt(form.c)||prev.user.targets.c,water:parseInt(form.water)||prev.user.targets.water}}}));
+        alert('✅ Saqlandi!');
+      };
+      const resetData=()=>{
+        if(confirm('⚠️ Barcha ma\'lumotlar o\'chirilsinmi?')){localStorage.removeItem('fitlogpro_v2');window.location.reload();}
+      };
+      return(
+        <div style={{padding:'0 16px 16px'}} className="su">
+          <div style={{padding:'52px 0 16px'}}>
+            <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:34,fontWeight:900,color:T1}}>SOZLAMALAR ⚙️</h1>
+          </div>
+          <Card style={{marginBottom:12}}>
+            <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:16,fontFamily:"'Barlow Condensed',sans-serif"}}>SHAXSIY MA'LUMOTLAR</p>
+            {[['Ism','name','text'],['Yosh','age','number'],['Vazn (kg)','wt','number'],["Bo'y (sm)",'ht','number']].map(([lbl,key,type])=>(
+              <div key={key} style={{marginBottom:14}}>
+                <p style={{color:T2,fontSize:12,marginBottom:6}}>{lbl}</p>
+                <input type={type} value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))} style={{width:'100%',background:S3,border:'1px solid '+BD,borderRadius:10,color:T1,padding:'10px 14px',fontSize:16,outline:'none'}}/>
+              </div>
+            ))}
+          </Card>
+          <Card style={{marginBottom:12}}>
+            <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:16,fontFamily:"'Barlow Condensed',sans-serif"}}>KUNLIK MAQSADLAR</p>
+            {[['Kaloriya (kkal)','cal'],['Oqsil (g)','p'],["Yog' (g)",'f'],['Uglevod (g)','c'],['Suv (stakan)','water']].map(([lbl,key])=>(
+              <div key={key} style={{marginBottom:14}}>
+                <p style={{color:T2,fontSize:12,marginBottom:6}}>{lbl}</p>
+                <input type="number" value={form[key]} onChange={e=>setForm(p=>({...p,[key]:e.target.value}))} style={{width:'100%',background:S3,border:'1px solid '+BD,borderRadius:10,color:T1,padding:'10px 14px',fontSize:16,outline:'none'}}/>
+              </div>
+            ))}
+          </Card>
+          <Btn onClick={save} color={ACC} style={{width:'100%',marginBottom:12,fontSize:16}}>✓ SAQLASH</Btn>
+          <Card>
+            <p style={{color:T2,fontSize:11,letterSpacing:2,marginBottom:12,fontFamily:"'Barlow Condensed',sans-serif"}}>MA'LUMOTLAR</p>
+            <p style={{color:T2,fontSize:13,marginBottom:12}}>Barcha trening, ovqat va tana ma'lumotlari qurilmangizda saqlanadi.</p>
+            <button onClick={resetData} style={{background:RED+'15',border:'1px solid '+RED+'44',borderRadius:10,color:RED,padding:'10px 20px',fontWeight:700,fontSize:14,cursor:'pointer',width:'100%'}}>🗑️ Barcha ma'lumotlarni o'chirish</button>
+          </Card>
+        </div>
+      );
+    }
+
+    /* ── MAIN APP ── */
+    function FitLogPro(){
+      const [tab,setTab]=useState('home');
+      const [data,setData]=useState(getInitial);
+      const [activeWorkout,setActiveWorkout]=useState(null);
+
+      useEffect(()=>{try{localStorage.setItem('fitlogpro_v2',JSON.stringify(data));}catch(e){};},[data]);
+
+      const tabs=[
+        {id:'home',icon:'🏠',label:'Bosh'},
+        {id:'workout',icon:'💪',label:'Trening'},
+        {id:'nutrition',icon:'🥗',label:'Ovqat'},
+        {id:'body',icon:'📊',label:'Tana'},
+        {id:'ai',icon:'🤖',label:'AI'},
+        {id:'settings',icon:'⚙️',label:'Sozlama'},
+      ];
+
+      const finishWorkout=(exSets,dur)=>{
+        const day=activeWorkout.day;
+        const newLog={date:td(),prog:activeWorkout.prog.id,day:day.id,dur:Math.round(dur/60),vol:exSets.reduce((a,ex)=>a+volCalc(ex.sets.filter(s=>s.done)),0),exs:exSets.map(ex=>({id:ex.id,name:ex.name,sets:ex.sets}))};
+        const newPRs=data.prs.slice();
+        exSets.forEach(ex=>{
+          ex.sets.filter(s=>s.done&&parseFloat(s.w)>0).forEach(s=>{
+            const w=parseFloat(s.w),r=parseInt(s.r||1),est=e1rm(w,r);
+            const oi=newPRs.findIndex(p=>p.eid===ex.id);
+            if(oi<0||est>newPRs[oi].e1rm){const pr={eid:ex.id,name:ex.name,w,r,date:td(),e1rm:est};if(oi>=0)newPRs.splice(oi,1,pr);else newPRs.push(pr);}
+          });
+        });
+        setData(p=>({...p,woLogs:[...p.woLogs,newLog],prs:newPRs,woCount:p.woCount+1,streak:p.streak+1,lastWo:td(),dayIndex:(p.dayIndex+1)%(activeWorkout.prog.days.length||1)}));
+        setActiveWorkout(null);setTab('home');
+      };
+
+      return(
+        <div style={{background:BG,minHeight:'100vh',maxWidth:430,margin:'0 auto',position:'relative',fontFamily:"'Barlow',sans-serif",color:T1,overflow:'hidden'}}>
+          {activeWorkout&&(
+            <ActiveWorkoutScreen workout={activeWorkout} data={data} onFinish={finishWorkout} onCancel={()=>setActiveWorkout(null)}/>
+          )}
+          {!activeWorkout&&(
+            <div style={{paddingBottom:76,height:'100vh',overflowY:'auto'}}>
+              {tab==='home'&&<HomeTab data={data} setTab={setTab} setActiveWorkout={setActiveWorkout}/>}
+              {tab==='workout'&&<WorkoutTab data={data} setData={setData} setActiveWorkout={setActiveWorkout}/>}
+              {tab==='nutrition'&&<NutritionTab data={data} setData={setData}/>}
+              {tab==='body'&&<BodyTab data={data} setData={setData}/>}
+              {tab==='ai'&&<AITab data={data}/>}
+              {tab==='settings'&&<SettingsTab data={data} setData={setData}/>}
+            </div>
+          )}
+          {!activeWorkout&&(
+            <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:430,background:S1,borderTop:'1px solid '+BD,display:'flex',zIndex:90,boxShadow:'0 -2px 12px rgba(0,0,0,0.06)'}}>
+              {tabs.map(t=>(
+                <button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:'8px 0',border:'none',background:'transparent',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                  <span style={{fontSize:tab===t.id?20:18,transition:'all 0.2s',transform:tab===t.id?'scale(1.15)':'scale(1)'}}>{t.icon}</span>
+                  <span style={{fontSize:8,fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,letterSpacing:0.5,color:tab===t.id?ACC:T3}}>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<FitLogPro/>);
+  </script>
+</body>
+</html>
