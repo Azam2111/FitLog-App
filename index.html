@@ -445,7 +445,7 @@
           )}
 
           <h3 style={{fontSize:20, fontWeight:700, marginTop:32, marginBottom:16}}>Qidirish va Qo'shish</h3>
-          <input className="input-flat" value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Mahsulot izlash (xom holatda)..." style={{marginBottom:20, background:'#fff', boxShadow:var(--shadow), padding:'16px', fontSize:17}}/>
+          <input className="input-flat" value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Mahsulot izlash (xom holatda)..." style={{marginBottom:20, background:'#fff', boxShadow:'var(--shadow)', padding:'16px', fontSize:17}}/>
           
           <div>
             {filtered.map(f => (
@@ -511,7 +511,7 @@
             )}
             {msgs.map((m, i) => (
               <div key={i} style={{marginBottom:20, display:'flex', justifyContent: m.role==='user'?'flex-end':'flex-start'}}>
-                <div style={{maxWidth:'85%', padding:'14px 18px', borderRadius: m.role==='user'?'24px 24px 6px 24px':'24px 24px 24px 6px', background: m.role==='user'?'var(--blue)':'#fff', color: m.role==='user'?'#fff':'var(--text)', boxShadow:var(--shadow), fontSize:16, lineHeight:1.4}}>
+                <div style={{maxWidth:'85%', padding:'14px 18px', borderRadius: m.role==='user'?'24px 24px 6px 24px':'24px 24px 24px 6px', background: m.role==='user'?'var(--blue)':'#fff', color: m.role==='user'?'#fff':'var(--text)', boxShadow:'var(--shadow)', fontSize:16, lineHeight:1.4}}>
                   {m.text}
                 </div>
               </div>
